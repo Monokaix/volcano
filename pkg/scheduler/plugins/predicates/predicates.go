@@ -345,7 +345,7 @@ func (pp *predicatesPlugin) OnSessionOpen(ssn *framework.Session) {
 	// 6. NodeVolumeLimits
 	plugin, _ = nodevolumelimits.NewCSI(nil, handle, features)
 	nodeVolumeLimitsCSIFilter := plugin.(*nodevolumelimits.CSILimits)
-	// 7. VolumeZone
+	// 8. VolumeZone
 	plugin, _ = volumezone.New(nil, handle)
 	volumeZoneFilter := plugin.(*volumezone.VolumeZone)
 	// 8. VolumeBinding
@@ -508,6 +508,18 @@ func (pp *predicatesPlugin) OnSessionOpen(ssn *framework.Session) {
 			if err != nil {
 				return predicateStatus, fmt.Errorf("plugin %s predicates failed %s", nodeVolumeLimitsCSIFilter.Name(), status.Message())
 			}
+		}
+
+		// Check VolumeBinding: handle immediate claims unbounded case
+		status = volumebindingFilter.PreFilter(context.TODO(), state, task.Pod)
+		if !status.IsSuccess() {
+			return fmt.Errorf("plugin %s pre-predicates failed %s", volumebindingFilter.Name(), status.Message())
+		}
+
+		// handle both bound(check node affinity) and unbound(find available PVs and check node affinity) PVCs
+		status = volumebindingFilter.Filter(context.TODO(), state, task.Pod, nodeInfo)
+		if !status.IsSuccess() {
+			return fmt.Errorf("plugin %s predicates failed %s", volumebindingFilter.Name(), status.Message())
 		}
 
 		// Check VolumeZone
