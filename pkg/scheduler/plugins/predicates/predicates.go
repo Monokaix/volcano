@@ -68,6 +68,8 @@ const (
 	// VolumeZoneEnable is the key for enabling Volume Zone Predicates in scheduler configmap
 	VolumeZoneEnable = "predicate.VolumeZoneEnable"
 
+	VolumeBinding = "predicate.VolumeBinding"
+
 	// PodTopologySpreadEnable is the key for enabling Pod Topology Spread Predicates in scheduler configmap
 	PodTopologySpreadEnable = "predicate.PodTopologySpreadEnable"
 
@@ -163,7 +165,7 @@ func enablePredicate(args framework.Arguments) predicateEnable {
 		podAffinityEnable:       true,
 		nodeVolumeLimitsEnable:  true,
 		volumeZoneEnable:        true,
-		volumeBindingEnable:     false,
+		volumeBindingEnable:     true,
 		podTopologySpreadEnable: true,
 		cacheEnable:             false,
 		proportionalEnable:      false,
@@ -177,6 +179,7 @@ func enablePredicate(args framework.Arguments) predicateEnable {
 	args.GetBool(&predicate.podAffinityEnable, PodAffinityEnable)
 	args.GetBool(&predicate.nodeVolumeLimitsEnable, NodeVolumeLimitsEnable)
 	args.GetBool(&predicate.volumeZoneEnable, VolumeZoneEnable)
+	args.GetBool(&predicate.volumeBindingEnable, VolumeBinding)
 	args.GetBool(&predicate.podTopologySpreadEnable, PodTopologySpreadEnable)
 
 	// Checks whether predicate.GPUSharingEnable is provided or not, if given, modifies the value in predicateEnable struct.
