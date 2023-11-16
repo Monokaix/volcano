@@ -104,6 +104,11 @@ func (ssn *Session) AddOverusedFn(name string, fn api.ValidateFn) {
 	ssn.overusedFns[name] = fn
 }
 
+// AddCanReclaimFn add overused function
+func (ssn *Session) AddCanReclaimFn(name string, fn api.ValidateFn) {
+	ssn.canReclaimFns[name] = fn
+}
+
 // AddAllocatableFn add allocatable function
 func (ssn *Session) AddAllocatableFn(name string, fn api.AllocatableFn) {
 	ssn.allocatableFns[name] = fn
@@ -264,6 +269,26 @@ func (ssn *Session) Overused(queue *api.QueueInfo) bool {
 	}
 
 	return false
+}
+
+// CanReclaimOthers invoke can reclaim function of the plugins
+func (ssn *Session) CanReclaimOthers(queue *api.QueueInfo) bool {
+	for _, tier := range ssn.Tiers {
+		for _, plugin := range tier.Plugins {
+			if !isEnabled(plugin.EnabledOverused) {
+				continue
+			}
+			of, found := ssn.canReclaimFns[plugin.Name]
+			if !found {
+				continue
+			}
+			if !of(queue) {
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 // Allocatable invoke allocatable function of the plugins
