@@ -125,6 +125,7 @@ func (cp *capacityPlugin) OnSessionOpen(ssn *framework.Session) {
 				attr.realCapability = realCapability
 			}
 			attr.deserved = api.NewResource(getResourceList(queue.Queue))
+			klog.ErrorS(nil, "attr.deserved", "deserved", attr.deserved, "realCapability", attr.realCapability)
 			cp.queueOpts[job.Queue] = attr
 			klog.V(4).Infof("Added Queue <%s> attributes.", job.Queue)
 		}
@@ -212,36 +213,35 @@ func (cp *capacityPlugin) OnSessionOpen(ssn *framework.Session) {
 				victims = append(victims, reclaimee)
 			}
 		}
-		klog.V(4).Infof("Victims from capacity plugins are %+v", victims)
+		klog.V(4).InfoS("Victims from capacity plugin", "victims", victims, "reclaimer", reclaimer)
 		return victims, util.Permit
 	})
 
-	ssn.AddOverusedFn(cp.Name(), func(obj interface{}) bool {
+	ssn.AddCanReclaimFn(cp.Name(), func(obj interface{}) bool {
 		queue := obj.(*api.QueueInfo)
 		attr := cp.queueOpts[queue.UID]
 
-		overused := attr.deserved.LessEqual(attr.allocated, api.Zero)
-		metrics.UpdateQueueOverused(attr.name, overused)
-		if overused {
-			klog.V(3).Infof("Queue <%v>: deserved <%v>, allocated <%v>, share <%v>",
+		canReclaim := !attr.deserved.Clone().LessEqual(attr.allocated, api.Zero)
+		if !canReclaim {
+			klog.V(3).Infof("Queue <%v> can not claim, deserved <%v>, allocated <%v>, share <%v>",
 				queue.Name, attr.deserved, attr.allocated, attr.share)
 		}
 
-		return overused
+		return canReclaim
 	})
 
-	//ssn.AddAllocatableFn(cp.Name(), func(queue *api.QueueInfo, candidate *api.TaskInfo) bool {
-	//	attr := cp.queueOpts[queue.UID]
-	//
-	//	free, _ := attr.deserved.Diff(attr.allocated, api.Zero)
-	//	allocatable := candidate.Resreq.LessEqual(free, api.Zero)
-	//	if !allocatable {
-	//		klog.V(3).Infof("Queue <%v>: deserved <%v>, allocated <%v>; Candidate <%v>: resource request <%v>",
-	//			queue.Name, attr.deserved, attr.allocated, candidate.Name, candidate.Resreq)
-	//	}
-	//
-	//	return allocatable
-	//})
+	ssn.AddAllocatableFn(cp.Name(), func(queue *api.QueueInfo, candidate *api.TaskInfo) bool {
+		attr := cp.queueOpts[queue.UID]
+
+		free, _ := attr.realCapability.Diff(attr.allocated, api.Zero)
+		allocatable := candidate.Resreq.LessEqual(free, api.Zero)
+		if !allocatable {
+			klog.V(3).Infof("Queue <%v>: realCapability <%v>, allocated <%v>; Candidate <%v>: resource request <%v>",
+				queue.Name, attr.realCapability, attr.allocated, candidate.Name, candidate.Resreq)
+		}
+
+		return allocatable
+	})
 
 	ssn.AddJobEnqueueableFn(cp.Name(), func(obj interface{}) int {
 		job := obj.(*api.JobInfo)

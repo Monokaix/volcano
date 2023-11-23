@@ -90,6 +90,7 @@ func (gp *gangPlugin) OnSessionOpen(ssn *framework.Session) {
 				jobOccupiedMap[job.UID] = job.ReadyTaskNum()
 			}
 
+			klog.ErrorS(nil, "jobOccupiedMap", "name", job.Name, "jobOccupiedMap", jobOccupiedMap[job.UID], "job.MinAvailable", job.MinAvailable)
 			if jobOccupiedMap[job.UID] > job.MinAvailable {
 				jobOccupiedMap[job.UID]--
 				victims = append(victims, preemptee)
@@ -99,7 +100,7 @@ func (gp *gangPlugin) OnSessionOpen(ssn *framework.Session) {
 			}
 		}
 
-		klog.V(4).Infof("Victims from Gang plugins are %+v", victims)
+		klog.V(4).InfoS("Victims from Gang plugins", "victims", victims, "preemptor", preemptor)
 
 		return victims, util.Permit
 	}

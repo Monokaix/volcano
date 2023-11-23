@@ -91,8 +91,8 @@ func (ra *Action) Execute(ssn *framework.Session) {
 		var task *api.TaskInfo
 
 		queue := queues.Pop().(*api.QueueInfo)
-		if ssn.Overused(queue) {
-			klog.V(3).Infof("Queue <%s> is overused, ignore it.", queue.Name)
+		if !ssn.CanReclaimOthers(queue) {
+			klog.V(3).Infof("Queue <%s> can not claim, ignore it.", queue.Name)
 			continue
 		}
 
