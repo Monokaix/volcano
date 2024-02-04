@@ -18,6 +18,7 @@ package framework
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"reflect"
 
 	v1 "k8s.io/api/core/v1"
@@ -63,6 +64,8 @@ type Session struct {
 	Queues         map[api.QueueID]*api.QueueInfo
 	NamespaceInfo  map[api.NamespaceName]*api.NamespaceInfo
 
+	CustomResources map[schema.GroupVersionResource]map[string]api.CustomResource
+
 	// NodeMap is like Nodes except that it uses k8s NodeInfo api and should only
 	// be used in k8s compatable api scenarios such as in predicates and nodeorder plugins.
 	NodeMap   map[string]*k8sframework.NodeInfo
@@ -98,6 +101,9 @@ type Session struct {
 	reservedNodesFns  map[string]api.ReservedNodesFn
 	victimTasksFns    map[string][]api.VictimTasksFn
 	jobStarvingFns    map[string]api.ValidateFn
+
+	genericPredicateFns map[string]api.GenericPredicateFn
+	genericOrderFns     map[string]api.GenericOrderFn
 }
 
 func openSession(cache cache.Cache) *Session {
@@ -143,6 +149,9 @@ func openSession(cache cache.Cache) *Session {
 		reservedNodesFns:  map[string]api.ReservedNodesFn{},
 		victimTasksFns:    map[string][]api.VictimTasksFn{},
 		jobStarvingFns:    map[string]api.ValidateFn{},
+
+		genericPredicateFns: map[string]api.GenericPredicateFn{},
+		genericOrderFns:     map[string]api.GenericOrderFn{},
 	}
 
 	snapshot := cache.Snapshot()
@@ -178,6 +187,7 @@ func openSession(cache cache.Cache) *Session {
 	ssn.RevocableNodes = snapshot.RevocableNodes
 	ssn.Queues = snapshot.Queues
 	ssn.NamespaceInfo = snapshot.NamespaceInfo
+	ssn.CustomResources = snapshot.CustomResources
 	// calculate all nodes' resource only once in each schedule cycle, other plugins can clone it when need
 	for _, n := range ssn.Nodes {
 		ssn.TotalResource.Add(n.Allocatable)
