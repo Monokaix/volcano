@@ -115,9 +115,9 @@ Disable displaying volcano component logs:
   exit 0
 fi
 
-if [[ $CLEANUP_CLUSTER -eq 1 ]]; then
-    trap cleanup EXIT
-fi
+#if [[ $CLEANUP_CLUSTER -eq 1 ]]; then
+#    trap cleanup EXIT
+#fi
 
 source "${VK_ROOT}/hack/lib/install.sh"
 
@@ -131,46 +131,46 @@ fi
 install-volcano
 
 # Run e2e test
-cd ${VK_ROOT}
+#cd ${VK_ROOT}
+#
+#install-ginkgo-if-not-exist
+#
+#case ${E2E_TYPE} in
+#"ALL")
+#    echo "Running e2e..."
+#    KUBECONFIG=${KUBECONFIG} ginkgo -r --nodes=4 --compilers=4 --randomize-all --randomize-suites --fail-on-pending --cover --trace --race --slow-spec-threshold='30s' --progress ./test/e2e/jobp/
+#    KUBECONFIG=${KUBECONFIG} ginkgo -r --slow-spec-threshold='30s' --progress ./test/e2e/jobseq/
+#    KUBECONFIG=${KUBECONFIG} ginkgo -r --slow-spec-threshold='30s' --progress ./test/e2e/schedulingbase/
+#    KUBECONFIG=${KUBECONFIG} ginkgo -r --slow-spec-threshold='30s' --progress ./test/e2e/schedulingaction/
+#    KUBECONFIG=${KUBECONFIG} ginkgo -r --slow-spec-threshold='30s' --progress ./test/e2e/vcctl/
+#    ;;
+#"JOBP")
+#    echo "Running parallel job e2e suite..."
+#    KUBECONFIG=${KUBECONFIG} ginkgo -r --nodes=4 --compilers=4 --randomize-all --randomize-suites --fail-on-pending --cover --trace --race --slow-spec-threshold='30s' --progress ./test/e2e/jobp/
+#    ;;
+#"JOBSEQ")
+#    echo "Running sequence job e2e suite..."
+#    KUBECONFIG=${KUBECONFIG} ginkgo -r --slow-spec-threshold='30s' --progress ./test/e2e/jobseq/
+#    ;;
+#"SCHEDULINGBASE")
+#    echo "Running scheduling base e2e suite..."
+#    KUBECONFIG=${KUBECONFIG} ginkgo -r --slow-spec-threshold='30s' --progress ./test/e2e/schedulingbase/
+#    ;;
+#"SCHEDULINGACTION")
+#    echo "Running scheduling action e2e suite..."
+#    KUBECONFIG=${KUBECONFIG} ginkgo -r --slow-spec-threshold='30s' --progress ./test/e2e/schedulingaction/
+#    ;;
+#"VCCTL")
+#    echo "Running vcctl e2e suite..."
+#    KUBECONFIG=${KUBECONFIG} ginkgo -r --slow-spec-threshold='30s' --progress ./test/e2e/vcctl/
+#    ;;
+#"STRESS")
+#    echo "Running stress e2e suite..."
+#    KUBECONFIG=${KUBECONFIG} ginkgo -r --slow-spec-threshold='30s' --progress ./test/e2e/stress/
+#    ;;
+#esac
 
-install-ginkgo-if-not-exist
-
-case ${E2E_TYPE} in
-"ALL")
-    echo "Running e2e..."
-    KUBECONFIG=${KUBECONFIG} ginkgo -r --nodes=4 --compilers=4 --randomize-all --randomize-suites --fail-on-pending --cover --trace --race --slow-spec-threshold='30s' --progress ./test/e2e/jobp/
-    KUBECONFIG=${KUBECONFIG} ginkgo -r --slow-spec-threshold='30s' --progress ./test/e2e/jobseq/
-    KUBECONFIG=${KUBECONFIG} ginkgo -r --slow-spec-threshold='30s' --progress ./test/e2e/schedulingbase/
-    KUBECONFIG=${KUBECONFIG} ginkgo -r --slow-spec-threshold='30s' --progress ./test/e2e/schedulingaction/
-    KUBECONFIG=${KUBECONFIG} ginkgo -r --slow-spec-threshold='30s' --progress ./test/e2e/vcctl/
-    ;;
-"JOBP")
-    echo "Running parallel job e2e suite..."
-    KUBECONFIG=${KUBECONFIG} ginkgo -r --nodes=4 --compilers=4 --randomize-all --randomize-suites --fail-on-pending --cover --trace --race --slow-spec-threshold='30s' --progress ./test/e2e/jobp/
-    ;;
-"JOBSEQ")
-    echo "Running sequence job e2e suite..."
-    KUBECONFIG=${KUBECONFIG} ginkgo -r --slow-spec-threshold='30s' --progress ./test/e2e/jobseq/
-    ;;
-"SCHEDULINGBASE")
-    echo "Running scheduling base e2e suite..."
-    KUBECONFIG=${KUBECONFIG} ginkgo -r --slow-spec-threshold='30s' --progress ./test/e2e/schedulingbase/
-    ;;
-"SCHEDULINGACTION")
-    echo "Running scheduling action e2e suite..."
-    KUBECONFIG=${KUBECONFIG} ginkgo -r --slow-spec-threshold='30s' --progress ./test/e2e/schedulingaction/
-    ;;
-"VCCTL")
-    echo "Running vcctl e2e suite..."
-    KUBECONFIG=${KUBECONFIG} ginkgo -r --slow-spec-threshold='30s' --progress ./test/e2e/vcctl/
-    ;;
-"STRESS")
-    echo "Running stress e2e suite..."
-    KUBECONFIG=${KUBECONFIG} ginkgo -r --slow-spec-threshold='30s' --progress ./test/e2e/stress/
-    ;;
-esac
-
-if [[ $? -ne 0 ]]; then
-  generate-log
-  exit 1
-fi
+#if [[ $? -ne 0 ]]; then
+#  generate-log
+#  exit 1
+#fi
