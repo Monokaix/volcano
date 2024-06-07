@@ -258,10 +258,12 @@ func preempt(
 			continue
 		}
 
+		klog.Errorln("victimsbefore", len(victims))
 		victimsQueue := ssn.BuildVictimsPriorityQueue(victims)
 		// Preempt victims for tasks, pick lowest priority task first.
 		preempted := api.EmptyResource()
 
+		klog.Errorln("victimsQueueafter", victimsQueue.Len())
 		for !victimsQueue.Empty() {
 			// If reclaimed enough resources, break loop to avoid Sub panic.
 			// Preempt action is about preempt in same queue, which job is not allocatable in allocate action, due to:
@@ -273,7 +275,10 @@ func preempt(
 			// so if current queue is not allocatable(the queue will be overused when consider current preemptor's requests)
 			// or current idle resource is not enougth for preemptor, it need to continue preempting
 			// otherwise, break out
+			klog.Errorln("1:", ssn.Allocatable(currentQueue, preemptor), "2:", preemptor.InitResreq.LessEqual(node.FutureIdle(), api.Zero))
+			klog.Errorln("preemmptor:", preemptor.InitResreq, "node:", node.FutureIdle())
 			if ssn.Allocatable(currentQueue, preemptor) && preemptor.InitResreq.LessEqual(node.FutureIdle(), api.Zero) {
+
 				break
 			}
 			preemptee := victimsQueue.Pop().(*api.TaskInfo)
