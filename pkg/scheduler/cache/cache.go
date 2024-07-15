@@ -50,6 +50,7 @@ import (
 	"k8s.io/klog/v2"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
+	"stathat.com/c/consistent"
 
 	batch "volcano.sh/apis/pkg/apis/batch/v1alpha1"
 	"volcano.sh/apis/pkg/apis/scheduling"
@@ -157,6 +158,13 @@ type SchedulerCache struct {
 	// not be counted in pod pvc resource request and node.Allocatable, because the spec.drivers of csinode resource
 	// is always null, these provisioners usually are host path csi controllers like rancher.io/local-path and hostpath.csi.k8s.io.
 	IgnoredCSIProvisioners sets.Set[string]
+
+	multiSchedulerInfo
+}
+
+type multiSchedulerInfo struct {
+	schedulerPodName string
+	c                *consistent.Consistent
 }
 
 type imageState struct {
@@ -556,6 +564,7 @@ func newSchedulerCache(config *rest.Config, schedulerNames []string, defaultQueu
 		nodeWorkers: nodeWorkers,
 	}
 
+	sc.schedulerPodName, sc.c = getMultiSchedulerInfo()
 	ignoredProvisionersSet := sets.New[string]()
 	for _, provisioner := range append(ignoredProvisioners, defaultIgnoredProvisioners...) {
 		ignoredProvisionersSet.Insert(provisioner)
@@ -603,7 +612,6 @@ func newSchedulerCache(config *rest.Config, schedulerNames []string, defaultQueu
 func (sc *SchedulerCache) addEventHandler() {
 	informerFactory := informers.NewSharedInformerFactory(sc.kubeClient, 0)
 	sc.informerFactory = informerFactory
-	mySchedulerPodName, c := getMultiSchedulerInfo()
 
 	// explicitly register informers to the factory, otherwise resources listers cannot get anything
 	// even with no error returned.
@@ -642,7 +650,7 @@ func (sc *SchedulerCache) addEventHandler() {
 					return false
 				}
 
-				if !responsibleForNode(node.Name, mySchedulerPodName, c) {
+				if !responsibleForNode(node.Name, sc.schedulerPodName, sc.c) {
 					return false
 				}
 				if len(sc.nodeSelectorLabels) == 0 {
@@ -690,11 +698,11 @@ func (sc *SchedulerCache) addEventHandler() {
 			FilterFunc: func(obj interface{}) bool {
 				switch v := obj.(type) {
 				case *v1.Pod:
-					if !responsibleForPod(v, sc.schedulerNames, mySchedulerPodName, c) {
+					if !responsibleForPod(v, sc.schedulerNames, sc.schedulerPodName, sc.c) {
 						if len(v.Spec.NodeName) == 0 {
 							return false
 						}
-						if !responsibleForNode(v.Spec.NodeName, mySchedulerPodName, c) {
+						if !responsibleForNode(v.Spec.NodeName, sc.schedulerPodName, sc.c) {
 							return false
 						}
 					}
@@ -756,7 +764,7 @@ func (sc *SchedulerCache) addEventHandler() {
 					return false
 				}
 
-				return responsibleForPodGroup(pg, mySchedulerPodName, c)
+				return responsibleForPodGroup(pg, sc.schedulerPodName, sc.c)
 			},
 			Handler: cache.ResourceEventHandlerFuncs{
 				AddFunc:    sc.AddPodGroupV1beta1,
