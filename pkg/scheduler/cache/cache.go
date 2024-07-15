@@ -542,6 +542,7 @@ func newSchedulerCache(config *rest.Config, schedulerNames []string, defaultQueu
 		&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(100), 1000)},
 	)
 
+	schedulerPodName, c := getMultiSchedulerInfo()
 	sc := &SchedulerCache{
 		Jobs:                make(map[schedulingapi.JobID]*schedulingapi.JobInfo),
 		Nodes:               make(map[string]*schedulingapi.NodeInfo),
@@ -560,11 +561,11 @@ func newSchedulerCache(config *rest.Config, schedulerNames []string, defaultQueu
 		CSINodesStatus:      make(map[string]*schedulingapi.CSINodeStatusInfo),
 		imageStates:         make(map[string]*imageState),
 
-		NodeList:    []string{},
-		nodeWorkers: nodeWorkers,
+		NodeList:           []string{},
+		nodeWorkers:        nodeWorkers,
+		multiSchedulerInfo: multiSchedulerInfo{schedulerPodName: schedulerPodName, c: c},
 	}
 
-	sc.schedulerPodName, sc.c = getMultiSchedulerInfo()
 	ignoredProvisionersSet := sets.New[string]()
 	for _, provisioner := range append(ignoredProvisioners, defaultIgnoredProvisioners...) {
 		ignoredProvisionersSet.Insert(provisioner)
