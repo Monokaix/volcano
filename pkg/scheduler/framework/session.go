@@ -82,6 +82,8 @@ type Session struct {
 	HyperNodesListByTier map[int][]string
 	// HyperNodes maps hyperNode Name -> nodes under the hyperNode.
 	HyperNodes map[string][]*api.NodeInfo
+	// HyperNodesMap contains hyperNode Name and node Name under the hyperNode.
+	HyperNodesMap map[string]sets.Set[string]
 
 	plugins             map[string]Plugin
 	eventHandlers       []*EventHandler
@@ -196,6 +198,7 @@ func openSession(cache cache.Cache) *Session {
 	ssn.NodeList = util.GetNodeList(snapshot.Nodes, snapshot.NodeList)
 	ssn.HyperNodesListByTier = snapshot.HyperNodesListByTier
 	ssn.HyperNodes = util.GetHyperNodeList(snapshot.HyperNodes, snapshot.Nodes)
+	ssn.HyperNodesMap = snapshot.HyperNodes
 	ssn.Nodes = snapshot.Nodes
 	ssn.CSINodesStatus = snapshot.CSINodesStatus
 	ssn.RevocableNodes = snapshot.RevocableNodes

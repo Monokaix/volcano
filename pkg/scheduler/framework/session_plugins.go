@@ -321,6 +321,7 @@ func (ssn *Session) Allocatable(queue *api.QueueInfo, candidate *api.TaskInfo) b
 
 // JobReady invoke jobready function of the plugins
 func (ssn *Session) JobReady(obj interface{}) bool {
+	// 此tier非彼tier
 	for _, tier := range ssn.Tiers {
 		for _, plugin := range tier.Plugins {
 			if !isEnabled(plugin.EnabledJobReady) {

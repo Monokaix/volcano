@@ -240,7 +240,7 @@ func (s *Statement) Allocate(task *api.TaskInfo, nodeInfo *api.NodeInfo) (err er
 			s.ssn.cache.RevertVolumes(task, podVolumes)
 		}
 	}()
-
+	// wangbin set host name to pod spec
 	task.Pod.Spec.NodeName = hostname
 	task.PodVolumes = podVolumes
 
@@ -284,6 +284,7 @@ func (s *Statement) Allocate(task *api.TaskInfo, nodeInfo *api.NodeInfo) (err er
 
 	// Update status in session
 	klog.V(3).Info("Allocating operations ...")
+	// wangbin 将成功的task塞到stateframework的operation中
 	s.operations = append(s.operations, operation{
 		name: Allocate,
 		task: task,
