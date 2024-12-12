@@ -162,7 +162,7 @@ func (alloc *Action) allocateResources(queues *util.PriorityQueue, jobsMap map[a
 		}
 
 		klog.V(3).Infof("Try to allocate resource to Jobs in Queue <%s>", queue.Name)
-
+		// wangbin 除非queue过载（Overused）或者queue不在jobsMap中，否则pop完之后，queue都会重新再入队列
 		jobs, found := jobsMap[queue.UID]
 		if !found || jobs.Empty() {
 			klog.V(4).Infof("Can not find jobs for queue %s.", queue.Name)
@@ -204,9 +204,12 @@ func (alloc *Action) allocateResources(queues *util.PriorityQueue, jobsMap map[a
 		var stmt *framework.Statement
 		var tasksQueue *util.PriorityQueue
 		if hardMode {
+			// wangbin 调度成功的task进入了stmt，失败的task进入了tasksQueue，tasksQueue中还有未调度的task
 			stmt, tasksQueue = alloc.allocateResourceForTasksWithTopology(tasks, job, queue, highestAllowedTier)
 			// There are still left tasks that need to be allocated when min available < replicas, put the job back and set pending tasks.
 			if tasksQueue != nil {
+				// wangbin job是队列吐出来的，task没有调度完也需要重新入队
+				// 那么job已分配的task占用hypernode和tier记录下来，重新入队，下次调度时即可以查到
 				jobs.Push(job)
 				pendingTasks[job.UID] = tasksQueue
 			}
@@ -219,6 +222,7 @@ func (alloc *Action) allocateResources(queues *util.PriorityQueue, jobsMap map[a
 		}
 
 		if stmt != nil {
+			// wangbin commit应该就是真实提交，pod开始调度了
 			stmt.Commit()
 		}
 
@@ -228,11 +232,32 @@ func (alloc *Action) allocateResources(queues *util.PriorityQueue, jobsMap map[a
 	}
 }
 
+func (alloc *Action) checkOutMiniSetHyperNode(hyperNodeName string, beginTierindex int, job *api.JobInfo, highestAllowedTier int) (string, bool) {
+	ssn := alloc.session
+
+	if job.MiniSetHyperNode == "" || job.MiniSetHyperNode == hyperNodeName {
+		return hyperNodeName, true
+	}
+	for i := beginTierindex; i < len(alloc.hyperNodesTiers); i++ {
+		if i+1 > highestAllowedTier {
+			return "", false
+		}
+		for _, hyperNode := range ssn.HyperNodesListByTier[i] {
+			hyperNodeSet := ssn.HyperNodesMap[hyperNode]
+			if hyperNodeSet.Has(job.MiniSetHyperNode) && hyperNodeSet.Has(hyperNodeName) {
+				return hyperNode, true
+			}
+		}
+	}
+	return "", false
+}
+
 func (alloc *Action) allocateResourceForTasksWithTopology(tasks *util.PriorityQueue, job *api.JobInfo, queue *api.QueueInfo, highestAllowedTier int) (*framework.Statement, *util.PriorityQueue) {
 	jobStmtsByTier := make(map[int]map[string]*framework.Statement)
 	hyperNodesWithLeftTasks := make(map[string]*util.PriorityQueue)
 	ssn := alloc.session
 	selectedTier := 0
+	miniSetHyperNodes := make(map[string]string)
 
 	// Find a suitable hyperNode in one tier from down to top everytime to ensure that the selected hyperNode spans the least tier.
 	for index, tier := range alloc.hyperNodesTiers {
@@ -245,6 +270,13 @@ func (alloc *Action) allocateResourceForTasksWithTopology(tasks *util.PriorityQu
 			break
 		}
 		for _, hyperNodeName := range ssn.HyperNodesListByTier[tier] {
+			// 如果tier是2的话，nodes返回的tier2下的tier1的所有节点吗？是的
+			// 找hyperNodeName和currentHyperNode最小的公共祖先，然后看tier是否满足条件
+			miniSetHyperNode, ok := alloc.checkOutMiniSetHyperNode(hyperNodeName, index, job, highestAllowedTier)
+			if !ok {
+				continue
+			}
+			miniSetHyperNodes[hyperNodeName] = miniSetHyperNode
 			nodes, ok := ssn.HyperNodes[hyperNodeName]
 			if !ok {
 				klog.ErrorS(nil, "HyperNode not exists.", "jobName", job.UID, "name", hyperNodeName, "tier", tier)
@@ -256,6 +288,7 @@ func (alloc *Action) allocateResourceForTasksWithTopology(tasks *util.PriorityQu
 			job.ResetFitErr()
 			klog.V(3).InfoS("Try to allocate resource for job in hyperNode", "jobName", job.UID, "hyperNodeName", hyperNodeName, "tier", tier)
 			stmt := alloc.allocateResourcesForTasks(tasksQueue, job, queue, nodes, hyperNodeName)
+			// job notready, 即不符合则返回一个nil
 			if stmt == nil {
 				klog.V(4).InfoS("Cannot allocate resources for job with network topology constrains", "jobName", job.UID, "hyperNodeName", hyperNodeName, "tier", tier)
 				continue
@@ -278,6 +311,7 @@ func (alloc *Action) allocateResourceForTasksWithTopology(tasks *util.PriorityQu
 		}
 	}
 
+	// 大于0，即有符合的tier和hypernode，hypernode可能是一层，也可能是二层。从上面for的break条件，看出len(jobstmtBytier)只能为0或者1
 	if len(jobStmtsByTier) > 0 {
 		hyperNodes := make([]string, 0, len(jobStmtsByTier[selectedTier]))
 		for hyperNodeName := range jobStmtsByTier[selectedTier] {
@@ -286,6 +320,7 @@ func (alloc *Action) allocateResourceForTasksWithTopology(tasks *util.PriorityQu
 		klog.V(4).InfoS("Find available hyperNodes for job", "jobName", job.UID, "tier", selectedTier, "hyperNodes", hyperNodes)
 	}
 	stmt, hyperNode := alloc.selectBestHyperNode(jobStmtsByTier[selectedTier], job)
+	job.MiniSetHyperNode = miniSetHyperNodes[hyperNode]
 	return stmt, hyperNodesWithLeftTasks[hyperNode]
 }
 
@@ -348,6 +383,7 @@ func (alloc *Action) allocateResourcesForTasks(tasks *util.PriorityQueue, job *a
 	ph := util.NewPredicateHelper()
 
 	for !tasks.Empty() {
+		// 之所以要复制tasks, 是因为可能会重复调用allocateResourcesForTasks, 导致tasks的状态发生变化
 		task := tasks.Pop().(*api.TaskInfo)
 		if !ssn.Allocatable(queue, task) {
 			klog.V(3).Infof("Queue <%s> is overused when considering task <%s>, ignore it.", queue.Name, task.Name)
@@ -374,10 +410,12 @@ func (alloc *Action) allocateResourcesForTasks(tasks *util.PriorityQueue, job *a
 
 		predicateNodes, fitErrors := ph.PredicateNodes(task, allNodes, alloc.predicate, alloc.enablePredicateErrorCache)
 		if len(predicateNodes) == 0 {
+			// 一个task找不到节点，不一定整个job都要放弃，只要满足gang-scheduling min member就行
 			job.NodesFitErrors[task.UID] = fitErrors
 			// Assume that all left tasks are allocatable, but can not meet gang-scheduling min member,
 			// so we should break from continuously allocating.
 			// otherwise, should continue to find other allocatable task
+			// gang-scheduling min member
 			if job.NeedContinueAllocating() {
 				continue
 			} else {
@@ -393,6 +431,7 @@ func (alloc *Action) allocateResourcesForTasks(tasks *util.PriorityQueue, job *a
 		alloc.sumNodeScoresInHyperNode(string(job.UID), hyperNode, highestScore)
 		alloc.allocateResourcesForTask(stmt, task, bestNode, job)
 
+		// !tasks.Empty(): 要尽可能调度job中所有符合条件的task
 		if ssn.JobReady(job) && !tasks.Empty() {
 			break
 		}
@@ -480,6 +519,7 @@ func (alloc *Action) allocateResourcesForTask(stmt *framework.Statement, task *a
 	// Allocate idle resource to the task.
 	if task.InitResreq.LessEqual(node.Idle, api.Zero) {
 		klog.V(3).Infof("Binding Task <%v/%v> to node <%v>", task.Namespace, task.Name, node.Name)
+		// wangbin set node name to task
 		if err := stmt.Allocate(task, node); err != nil {
 			klog.Errorf("Failed to bind Task %v on %v in Session %v, err: %v",
 				task.UID, node.Name, alloc.session.UID, err)
