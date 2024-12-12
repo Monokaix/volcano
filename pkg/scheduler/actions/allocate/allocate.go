@@ -232,10 +232,10 @@ func (alloc *Action) allocateResources(queues *util.PriorityQueue, jobsMap map[a
 	}
 }
 
-func (alloc *Action) checkoutMiniSetHyperNode(hyperNodeName string, beginTierindex int, job *api.JobInfo, highestAllowedTier int) (string, bool) {
+func (alloc *Action) checkOutMiniSetHyperNode(hyperNodeName string, beginTierindex int, job *api.JobInfo, highestAllowedTier int) (string, bool) {
 	ssn := alloc.session
 
-	if job.CurrentHyperNode == "" || job.CurrentHyperNode == hyperNodeName {
+	if job.MiniSetHyperNode == "" || job.MiniSetHyperNode == hyperNodeName {
 		return hyperNodeName, true
 	}
 	for i := beginTierindex; i < len(alloc.hyperNodesTiers); i++ {
@@ -244,7 +244,7 @@ func (alloc *Action) checkoutMiniSetHyperNode(hyperNodeName string, beginTierind
 		}
 		for _, hyperNode := range ssn.HyperNodesListByTier[i] {
 			hyperNodeSet := ssn.HyperNodesMap[hyperNode]
-			if hyperNodeSet.Has(job.CurrentHyperNode) && hyperNodeSet.Has(hyperNodeName) {
+			if hyperNodeSet.Has(job.MiniSetHyperNode) && hyperNodeSet.Has(hyperNodeName) {
 				return hyperNode, true
 			}
 		}
@@ -272,7 +272,7 @@ func (alloc *Action) allocateResourceForTasksWithTopology(tasks *util.PriorityQu
 		for _, hyperNodeName := range ssn.HyperNodesListByTier[tier] {
 			// 如果tier是2的话，nodes返回的tier2下的tier1的所有节点吗？是的
 			// 找hyperNodeName和currentHyperNode最小的公共祖先，然后看tier是否满足条件
-			miniSetHyperNode, ok := alloc.checkoutMiniSetHyperNode(hyperNodeName, index, job, highestAllowedTier)
+			miniSetHyperNode, ok := alloc.checkOutMiniSetHyperNode(hyperNodeName, index, job, highestAllowedTier)
 			if !ok {
 				continue
 			}
@@ -320,7 +320,7 @@ func (alloc *Action) allocateResourceForTasksWithTopology(tasks *util.PriorityQu
 		klog.V(4).InfoS("Find available hyperNodes for job", "jobName", job.UID, "tier", selectedTier, "hyperNodes", hyperNodes)
 	}
 	stmt, hyperNode := alloc.selectBestHyperNode(jobStmtsByTier[selectedTier], job)
-	job.CurrentHyperNode = miniSetHyperNodes[hyperNode]
+	job.MiniSetHyperNode = miniSetHyperNodes[hyperNode]
 	return stmt, hyperNodesWithLeftTasks[hyperNode]
 }
 

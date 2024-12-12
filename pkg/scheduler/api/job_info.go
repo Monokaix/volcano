@@ -370,7 +370,7 @@ type JobInfo struct {
 	// * value means workload can use all the revocable node for during node active revocable time.
 	RevocableZone    string
 	Budget           *DisruptionBudget
-	CurrentHyperNode string
+	MiniSetHyperNode string
 }
 
 // NewJobInfo creates a new jobInfo for set of tasks
