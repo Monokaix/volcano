@@ -3,6 +3,7 @@ basic:
   scheduler_image_name: "volcanosh/vc-scheduler"
   admission_image_name: "volcanosh/vc-webhook-manager"
   agent_image_name: "volcanosh/vc-agent"
+  descheduler_image_name: "volcanosh/vc-descheduler"
   admission_secret_name: "volcano-admission-secret"
   admission_config_file: "config/volcano-admission.conf"
   scheduler_config_file: "config/volcano-scheduler.conf"
@@ -34,6 +35,40 @@ custom:
   scheduler_node_worker_threads: 20
   enabled_admissions: "/jobs/mutate,/jobs/validate,/podgroups/mutate,/pods/validate,/pods/mutate,/queues/mutate,/queues/validate"
   colocation_enable: false
+  # decsheuler custom config
+  descheduler_enable: false
+  descheduler_replicas: 1
+  deschedulingIntervalCronExpression: "*/10 * * * *"
+  deschedulingInterval: 10m
+  deschedulerPolicyAPIVersion: "descheduler/v1alpha2"
+  deschedulerPolicy:
+    profiles:
+      - name: default
+        pluginConfig:
+          - args:
+              ignorePvcPods: true
+              nodeFit: true
+              priorityThreshold:
+                value: 10000
+            name: DefaultEvictor
+          - args:
+              evictableNamespaces:
+                exclude:
+                  - kube-system
+              metrics:
+                type:
+                address:
+              targetThresholds: # upper threshold
+                cpu: 80
+                memory: 85
+              thresholds: # lower threshold
+                cpu: 30
+                memory: 30
+            name: LoadAware
+        plugins:
+          balance:
+            enabled:
+              - LoadAware # enable LoadAware balance plugin
 
 # Override the configuration for admission or scheduler.
 # For example:
@@ -142,6 +177,7 @@ custom:
   scheduler_resources: ~
   controller_resources: ~
   agent_resources: ~
+  descheduler-resources: ~
 
 
 # Specify additional namespace selector expressions for Volcano admission webhooks.
@@ -169,6 +205,8 @@ custom:
   admission_log_level: 4
   scheduler_log_level: 3
   controller_log_level: 4
+  agent_log_level: 2
+  descheduler_log_level: 3
 
 # Specify container security context for admission
 # For example:

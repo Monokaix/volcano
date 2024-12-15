@@ -12,27 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG OPEN_EULER_IMAGE_TAG
-ARG BWM_RPM_NAME
-
 FROM golang:1.22.7 AS builder
 WORKDIR /go/src/volcano.sh/
 COPY go.mod go.sum ./
 RUN go mod download
 ADD . volcano
-RUN cd volcano && make vc-agent
-
-FROM openeuler/openeuler:${OPEN_EULER_IMAGE_TAG} AS repo
-WORKDIR /
-RUN yum install -y cpio && \
-    yum install -y --downloadonly --destdir=./ oncn-bwm && \
-    rpm2cpio $(ls | grep oncn-bwm) | cpio -div
+RUN cd volcano && make vc-descheduler
 
 FROM alpine:latest
-RUN apk add sudo
-COPY --from=builder /go/src/volcano.sh/volcano/_output/bin/vc-agent /vc-agent
-COPY --from=builder /go/src/volcano.sh/volcano/_output/bin/network-qos \
-                    /go/src/volcano.sh/volcano/installer/build/volcano-agent/install.sh /usr/local/bin/
-COPY --from=repo /usr/share/bwmcli/bwm_tc.o /usr/local/bin/
-RUN chmod +x /usr/local/bin/install.sh
-
+COPY --from=builder /go/src/volcano.sh/volcano/_output/bin/vc-descheduler /vc-descheduler
+ENTRYPOINT ["/vc-descheduler"]

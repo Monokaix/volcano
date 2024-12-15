@@ -18,6 +18,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+set -x
+
 VK_ROOT=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/..
 export RELEASE_FOLDER=${VK_ROOT}/${RELEASE_DIR}
 
@@ -38,6 +40,17 @@ if ! diff ${VK_ROOT}/installer/volcano-agent-development.yaml ${RELEASE_FOLDER}/
 		echo "The Generated yaml is different from the one in installer/volcano-agent-development.yaml"
 		echo "please run 'make generate-yaml TAG=latest RELEASE_DIR=installer \
 		&& mv ${VK_ROOT}/installer/volcano-agent-latest.yaml ${VK_ROOT}/installer/volcano-agent-development.yaml' to update"
+		echo
+	} >&2
+	false
+fi
+
+if ! diff ${VK_ROOT}/installer/volcano-descheduler-development.yaml ${RELEASE_FOLDER}/volcano-descheduler-latest.yaml ; then
+	{
+		echo
+		echo "The Generated yaml is different from the one in installer/volcano-descheduler-development.yaml"
+		echo "please run 'make generate-yaml TAG=latest RELEASE_DIR=installer \
+		&& mv ${VK_ROOT}/installer/volcano-descheduler-latest.yaml ${VK_ROOT}/installer/volcano-descheduler-development.yaml' to update"
 		echo
 	} >&2
 	false

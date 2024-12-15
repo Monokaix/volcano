@@ -1,0 +1,128 @@
+{{- if .Values.custom.descheduler_enable }}
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ .Release.Name }}-descheduler
+rules:
+  - apiGroups: ["events.k8s.io"]
+    resources: ["events"]
+    verbs: ["create", "update"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "watch", "list", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/eviction"]
+    verbs: ["create"]
+  - apiGroups: ["scheduling.k8s.io"]
+    resources: ["priorityclasses"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  {{- if .Values.custom.leader_elect_enable }}
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["create", "update"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    resourceNames: ["vc-descheduler"]
+    verbs: ["get", "patch", "delete"]
+  {{- end }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-descheduler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Release.Name }}-descheduler
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-descheduler
+    namespace: {{ .Release.Namespace }}
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-descheduler
+  namespace: {{ .Release.Namespace }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-descheduler
+  namespace: {{ .Release.Namespace }}
+data:
+  policy.yaml: |
+    apiVersion: "{{ .Values.custom.deschedulerPolicyAPIVersion }}"
+    kind: "DeschedulerPolicy"
+{{ toYaml .Values.custom.deschedulerPolicy | trim | indent 4 }}
+
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: {{ .Release.Name }}-descheduler
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: descheduler
+    k8s-app: descheduler
+spec:
+  replicas: {{.Values.custom.descheduler_replicas}}
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: descheduler
+      k8s-app: descheduler
+  template:
+    metadata:
+      labels:
+        app: descheduler
+        k8s-app: descheduler
+    spec:
+      serviceAccountName: {{ .Release.Name }}-descheduler
+      volumes:
+        - name: policy-volume
+          configMap:
+            name: {{ .Release.Name }}-descheduler
+        - name: log
+          hostPath:
+            path: /var/log/volcano/descheduler
+      containers:
+        - name: descheduler
+          image: {{ .Values.basic.image_registry }}/{{.Values.basic.descheduler_image_name}}:{{.Values.basic.image_tag_version}}
+          command: ["sh", "-c"]
+          args:
+          - >
+           /vc-descheduler --descheduling-interval-cron-expression='{{.Values.custom.deschedulingIntervalCronExpression}}'
+           --descheduling-interval={{.Values.custom.deschedulingInterval}}
+           --policy-config-file=/policy-dir/policy.yaml
+           --leader-elect={{ .Values.custom.leader_elect_enable }}
+           --leader-elect-resource-namespace={{ .Release.Namespace }}
+           --v={{.Values.custom.descheduler_log_level}} 1>>/var/log/volcano/descheduler/descheduler.log 2>&1
+          imagePullPolicy: {{ .Values.basic.image_pull_policy }}
+          {{- if .Values.custom.scheduler_resources }}
+          resources:
+          {{- toYaml .Values.custom.descheduler_resources | nindent 12 }}
+          {{- end }}
+          env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          volumeMounts:
+            - mountPath: /policy-dir
+              name: policy-volume
+            - name: log
+              mountPath: /var/log/volcano/descheduler
+{{- end }}

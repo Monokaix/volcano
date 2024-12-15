@@ -29,6 +29,7 @@ export VOLCANO_IMAGE_TAG=${TAG:-"latest"}
 export YAML_FILENAME=volcano-${VOLCANO_IMAGE_TAG}.yaml
 export MONITOR_YAML_FILENAME=volcano-monitoring-${VOLCANO_IMAGE_TAG}.yaml
 export AGENT_YAML_FILENAME=volcano-agent-${VOLCANO_IMAGE_TAG}.yaml
+export DESCHEDULER_YAML_FILENAME=volcano-descheduler-${VOLCANO_IMAGE_TAG}.yaml
 
 export CRD_VERSION=${CRD_VERSION:-v1}
 
@@ -106,6 +107,7 @@ fi
 DEPLOYMENT_FILE=${RELEASE_FOLDER}/${YAML_FILENAME}
 MONITOR_DEPLOYMENT_YAML_FILENAME=${RELEASE_FOLDER}/${MONITOR_YAML_FILENAME}
 AGENT_DEPLOYMENT_YAML_FILENAME=${RELEASE_FOLDER}/${AGENT_YAML_FILENAME}
+DESCHEDULER_DEPLOYMENT_YAML_FILENAME=${RELEASE_FOLDER}/${DESCHEDULER_YAML_FILENAME}
 
 echo "Generating volcano yaml file into ${DEPLOYMENT_FILE}"
 
@@ -119,6 +121,10 @@ fi
 
 if [[ -f ${AGENT_DEPLOYMENT_YAML_FILENAME} ]];then
     rm "${AGENT_DEPLOYMENT_YAML_FILENAME}"
+fi
+
+if [[ -f ${DESCHEDULER_DEPLOYMENT_YAML_FILENAME} ]];then
+    rm "${DESCHEDULER_DEPLOYMENT_YAML_FILENAME}"
 fi
 
 # Namespace
@@ -159,3 +165,9 @@ ${HELM_BIN_DIR}/helm template ${VK_ROOT}/installer/helm/chart/volcano --namespac
       --name-template volcano --set basic.image_tag_version=${VOLCANO_IMAGE_TAG} --set custom.colocation_enable=true \
       -s templates/agent.yaml \
       >> ${AGENT_DEPLOYMENT_YAML_FILENAME}
+
+# Descheduler
+${HELM_BIN_DIR}/helm template ${VK_ROOT}/installer/helm/chart/volcano --namespace volcano-system \
+      --name-template volcano --set basic.image_tag_version=${VOLCANO_IMAGE_TAG} --set custom.descheduler_enable=true \
+      -s templates/descheduler.yaml \
+      >> ${DESCHEDULER_DEPLOYMENT_YAML_FILENAME}
