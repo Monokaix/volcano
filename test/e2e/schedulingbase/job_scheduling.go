@@ -88,7 +88,7 @@ var _ = Describe("Job E2E Test", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		err = e2eutil.WaitJobReady(ctx, job2)
-		Expect(err).NotTo(HaveOccurred())
+		Expect(err).To(HaveOccurred())
 
 		err = e2eutil.WaitJobReady(ctx, job3)
 		Expect(err).NotTo(HaveOccurred())
