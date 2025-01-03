@@ -31,6 +31,7 @@ import (
 
 type Action struct {
 	enablePredicateErrorCache bool
+	test                      bool
 }
 
 func New() *Action {
