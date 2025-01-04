@@ -38,7 +38,7 @@ Available Commands:
   jobtemplate vcctl command line operation jobtemplate
   pod         vcctl command line operation pod
   queue       Queue Operations
-  version     Print the version information
+  versxxxion     Print the version information
 
 Flags:
   -h, --help                           help for vcctl

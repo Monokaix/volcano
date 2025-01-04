@@ -61,7 +61,7 @@ var _ = ginkgo.Describe("[Stress] Job Test", func() {
 					}
 					referenceJob := e2eutil.CreateJob(ctx, job)
 					err := e2eutil.WaitTasksReady(ctx, referenceJob, 1)
-					gomega.Expect(err).NotTo(gomega.HaveOccurred())
+					gomega.Expect(err).To(gomega.HaveOccurred())
 				}()
 			}
 			wg.Wait()

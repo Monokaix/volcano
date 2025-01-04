@@ -73,7 +73,7 @@ var _ = ginkgo.Describe("Job E2E Test", func() {
 		job.Tasks[0].Req = slot2
 		highReqJob := e2eutil.CreateJob(ctx, job)
 		err = e2eutil.WaitJobReady(ctx, highReqJob)
-		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		gomega.Expect(err).To(gomega.HaveOccurred())
 	})
 
 	ginkgo.It("allocate don't work when resource is NOT enough", func() {

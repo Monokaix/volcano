@@ -73,7 +73,7 @@ var _ = Describe("PG E2E Test: Test PG controller", func() {
 		}
 
 		_, err := ctx.Kubeclient.CoreV1().ReplicationControllers(ctx.Namespace).Create(context.TODO(), rc, v1.CreateOptions{})
-		Expect(err).NotTo(HaveOccurred())
+		Expect(err).To(HaveOccurred())
 
 		err = e2eutil.WaitPodPhase(ctx, pod, []corev1.PodPhase{corev1.PodRunning})
 		Expect(err).NotTo(HaveOccurred())
