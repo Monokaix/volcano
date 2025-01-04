@@ -15,7 +15,7 @@
   - [Code Review](#code-review)
   - [Testing](#testing)
 
-# Before you get started
+# Befor get started
 
 ## Code of Conduct
 
