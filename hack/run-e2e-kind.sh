@@ -19,9 +19,10 @@
 export VK_ROOT=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/..
 export VC_BIN=${VK_ROOT}/${BIN_DIR}/${BIN_OSARCH}
 export LOG_LEVEL=3
-export SHOW_VOLCANO_LOGS=${SHOW_VOLCANO_LOGS:-1}
 export CLEANUP_CLUSTER=${CLEANUP_CLUSTER:-1}
 export E2E_TYPE=${E2E_TYPE:-"ALL"}
+export ARTIFACTS_PATH=${ARTIFACTS_PATH:-"${VK_ROOT}/volcano-e2e-logs"}
+mkdir -p "$ARTIFACTS_PATH"
 
 NAMESPACE=${NAMESPACE:-volcano-system}
 CLUSTER_NAME=${CLUSTER_NAME:-integration}
@@ -63,9 +64,7 @@ function uninstall-volcano {
 
 function generate-log {
     echo "Generating volcano log files"
-    kubectl logs deployment/${CLUSTER_NAME}-admission -n ${NAMESPACE} > volcano-admission.log
-    kubectl logs deployment/${CLUSTER_NAME}-controllers -n ${NAMESPACE} > volcano-controller.log
-    kubectl logs deployment/${CLUSTER_NAME}-scheduler -n ${NAMESPACE} > volcano-scheduler.log
+    kind export logs "$CLUSTER_CONTEXT" "$ARTIFACTS_PATH"
 }
 
 # clean up
@@ -73,12 +72,7 @@ function cleanup {
   uninstall-volcano
 
   echo "Running kind: [kind delete cluster ${CLUSTER_CONTEXT}]"
-  kind delete cluster ${CLUSTER_CONTEXT}
-
-  if [[ ${SHOW_VOLCANO_LOGS} -eq 1 ]]; then
-    #TODO: Add volcano logs support in future.
-    echo "Volcano logs are currently not supported."
-  fi
+  kind delete cluster "${CLUSTER_CONTEXT}"
 }
 
 echo $* | grep -E -q "\-\-help|\-h"
