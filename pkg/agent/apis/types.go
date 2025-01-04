@@ -25,7 +25,7 @@ const (
 	// NodeOverSubscriptionCPUKey define the oversubscription cpu resource on the node
 	NodeOverSubscriptionCPUKey = "volcano.sh/oversubscription-cpu"
 	// NodeOverSubscriptionMemoryKey define the oversubscription memory resource on the node
-	NodeOverSubscriptionMemoryKey = "volcano.sh/oversubscription-memory"
+	NodeOverSubscriptionMemoryKey = "volcano.sh/ovription-memory"
 
 	// PodQosLevelKey define pod qos level, see pkg/agent/apis/extension/qos.go for specific values.
 	PodQosLevelKey = "volcano.sh/qos-level"
