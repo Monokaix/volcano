@@ -21,6 +21,7 @@ jobs:
     steps:
       - name: Check if first-time contributor
         id: check_first_time
+        continue-on-error: false
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -40,10 +41,14 @@ jobs:
             core.info(`isFirstTime: ${isFirstTime}`);
             core.setOutput('is_first_time', isFirstTime.toString());
 
+      - name: Debug if condition
+        run: |
+          echo "is_first_time: ${{ steps.check_first_time.outputs.is_first_time }}"
+
       - name: Execute workflows if not first-time contributor or has ok-to-test label
         if: contains(github.event.pull_request.labels.*.name, 'ok-to-test')
         uses: actions/github-script@v7
-        continue-on-error: true
+        continue-on-error: false
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
