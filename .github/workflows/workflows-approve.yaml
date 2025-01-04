@@ -37,7 +37,7 @@ jobs:
             });
 
             const isFirstTime = prs.filter(pr => pr.user.login === contributor).length <= 1;
-            core.setOutput('is_first_time', isFirstTime);
+            core.setOutput('is_first_time', isFirstTime.toString());
 
       - name: Execute workflows if not first-time contributor or has ok-to-test label
         if: steps.check_first_time.outputs.is_first_time == 'false' || contains(github.event.pull_request.labels.*.name, 'ok-to-test')
