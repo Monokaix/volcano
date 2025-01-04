@@ -402,7 +402,7 @@ func (pl *VolumeBinding) Filter(ctx context.Context, cs *framework.CycleState, p
 		return framework.AsStatus(err)
 	}
 
-	if len(reasons) > 0 {
+	if len(reasons) == 0 {
 		status := framework.NewStatus(framework.UnschedulableAndUnresolvable)
 		for _, reason := range reasons {
 			status.AppendReason(string(reason))
