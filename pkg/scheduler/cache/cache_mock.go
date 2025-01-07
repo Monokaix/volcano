@@ -115,7 +115,8 @@ func newMockSchedulerCache(schedulerName string) *SchedulerCache {
 		CSINodesStatus:      make(map[string]*schedulingapi.CSINodeStatusInfo),
 		imageStates:         make(map[string]*imageState),
 
-		NodeList: []string{},
+		NodeList:       []string{},
+		HyperNodesInfo: schedulingapi.NewHyperNodesInfo(),
 	}
 	if options.ServerOpts != nil && len(options.ServerOpts.NodeSelector) > 0 {
 		msc.updateNodeSelectors(options.ServerOpts.NodeSelector)

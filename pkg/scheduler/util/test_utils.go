@@ -19,9 +19,6 @@ package util
 import (
 	"context"
 	"fmt"
-	"sync"
-	"time"
-
 	v1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -31,6 +28,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
+	"sync"
+	"time"
+	topologyv1alpha1 "volcano.sh/apis/pkg/apis/topology/v1alpha1"
 
 	schedulingv1beta1 "volcano.sh/apis/pkg/apis/scheduling/v1beta1"
 
@@ -326,6 +326,37 @@ func BuildPriorityClassWithPreemptionPolicy(name string, value int32, preemption
 	pc := BuildPriorityClass(name, value)
 	pc.PreemptionPolicy = &preemptionPolicy
 	return pc
+}
+
+// BuildHyperNode builds a hyperNode.
+func BuildHyperNode(name, tier string, memberType topologyv1alpha1.MemberType, members []string, selector string) *topologyv1alpha1.HyperNode {
+	hn := &topologyv1alpha1.HyperNode{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: topologyv1alpha1.HyperNodeSpec{
+			Tier:    tier,
+			Members: make([]topologyv1alpha1.MemberSpec, len(members)),
+		},
+	}
+
+	for i, member := range members {
+		hn.Spec.Members[i] = topologyv1alpha1.MemberSpec{
+			Type: memberType,
+			Selector: topologyv1alpha1.MemberSelector{
+				ExactMatch: &topologyv1alpha1.ExactMatch{Name: member},
+			},
+		}
+		if selector == "exact" {
+			hn.Spec.Members[i].Selector.ExactMatch = &topologyv1alpha1.ExactMatch{Name: member}
+			continue
+		}
+		if selector == "regex" {
+			hn.Spec.Members[i].Selector.RegexMatch = &topologyv1alpha1.RegexMatch{Pattern: member}
+			continue
+		}
+	}
+	return hn
 }
 
 // FakeBinder is used as fake binder

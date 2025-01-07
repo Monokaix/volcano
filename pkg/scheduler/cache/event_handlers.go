@@ -44,8 +44,8 @@ import (
 	"volcano.sh/apis/pkg/apis/scheduling"
 	"volcano.sh/apis/pkg/apis/scheduling/scheme"
 	schedulingv1beta1 "volcano.sh/apis/pkg/apis/scheduling/v1beta1"
+	topologyv1alpha1 "volcano.sh/apis/pkg/apis/topology/v1alpha1"
 	"volcano.sh/apis/pkg/apis/utils"
-
 	schedulingapi "volcano.sh/volcano/pkg/scheduler/api"
 	"volcano.sh/volcano/pkg/scheduler/metrics"
 )
@@ -1260,4 +1260,133 @@ func (sc *SchedulerCache) setCSIResourceOnNode(csiNode *sv1.CSINode, node *v1.No
 		node.Status.Allocatable[resourceName] = quantity
 		node.Status.Capacity[resourceName] = quantity
 	}
+}
+
+func (sc *SchedulerCache) AddHyperNode(obj interface{}) {
+	hyperNode, ok := obj.(*topologyv1alpha1.HyperNode)
+	if !ok {
+		klog.Errorf("Cannot convert to *topologyv1alpha1.HyperNode: %v", obj)
+		return
+	}
+
+	sc.updateHyperNodeTree(hyperNode)
+}
+
+// UpdateHyperNode updates HyperNode
+func (sc *SchedulerCache) UpdateHyperNode(oldObj, newObj interface{}) {
+	newHyperNode, ok := newObj.(*topologyv1alpha1.HyperNode)
+	if !ok {
+		klog.Errorf("Cannot convert newObj to *topologyv1alpha1.HyperNode: %v", newObj)
+		return
+	}
+
+	sc.updateHyperNodeTree(newHyperNode)
+}
+
+// DeleteHyperNode deletes HyperNode
+func (sc *SchedulerCache) DeleteHyperNode(obj interface{}) {
+	hyperNode, ok := obj.(*topologyv1alpha1.HyperNode)
+	if !ok {
+		klog.Errorf("Cannot convert to *topologyv1alpha1.HyperNode: %v", obj)
+		return
+	}
+
+	sc.Mutex.Lock()
+	defer sc.Mutex.Unlock()
+
+	delete(sc.HyperNodesInfo.HyperNodes, hyperNode.Name)
+	klog.V(3).Infof("Deleted HyperNode %s from cache", hyperNode.Name)
+
+	sc.rebuildHyperNodeTree()
+}
+
+func (sc *SchedulerCache) updateHyperNodeTree(hyperNode *topologyv1alpha1.HyperNode) {
+	sc.Mutex.Lock()
+	defer sc.Mutex.Unlock()
+
+	sc.updateSingleHyperNode(hyperNode)
+
+	sc.rebuildHyperNodeTree()
+}
+
+func (sc *SchedulerCache) updateSingleHyperNode(hyperNode *topologyv1alpha1.HyperNode) {
+	sc.HyperNodesInfo.HyperNodes[hyperNode.Name] = hyperNode
+	klog.V(3).Infof("Updated HyperNode %s in cache", hyperNode.Name)
+}
+
+func (sc *SchedulerCache) rebuildHyperNodeTree() {
+	sc.HyperNodesInfo.HyperNodesListByTier = make(map[int][]string)
+	sc.HyperNodesInfo.HyperNodesSet = make(map[string]sets.Set[string])
+	sc.HyperNodesInfo.ProcessedNodes = sets.Set[string]{}
+
+	for _, hyperNode := range sc.HyperNodesInfo.HyperNodes {
+		sc.buildTreeForHyperNode(hyperNode)
+	}
+
+	klog.V(3).Infof("Rebuilt HyperNode tree")
+}
+
+func (sc *SchedulerCache) buildTreeForHyperNode(hyperNode *topologyv1alpha1.HyperNode) {
+	if sc.isProcessed(hyperNode.Name) {
+		return
+	}
+
+	tier := getTier(hyperNode)
+
+	if _, ok := sc.HyperNodesInfo.HyperNodesListByTier[tier]; !ok {
+		sc.HyperNodesInfo.HyperNodesListByTier[tier] = []string{}
+	}
+	sc.HyperNodesInfo.HyperNodesListByTier[tier] = append(sc.HyperNodesInfo.HyperNodesListByTier[tier], hyperNode.Name)
+
+	for _, member := range hyperNode.Spec.Members {
+		switch member.Type {
+		case topologyv1alpha1.MemberTypeNode:
+			if _, ok := sc.HyperNodesInfo.HyperNodesSet[hyperNode.Name]; !ok {
+				sc.HyperNodesInfo.HyperNodesSet[hyperNode.Name] = sets.New[string]()
+			}
+
+			if member.Selector.ExactMatch != nil {
+				sc.HyperNodesInfo.HyperNodesSet[hyperNode.Name].Insert(member.Selector.ExactMatch.Name)
+			}
+
+		case topologyv1alpha1.MemberTypeHyperNode:
+			if member.Selector.ExactMatch == nil {
+				continue
+			}
+			memberName := member.Selector.ExactMatch.Name
+			memberHyperNode, ok := sc.HyperNodesInfo.HyperNodes[memberName]
+			if !ok {
+				klog.InfoS("HyperNode not exists in cache, maybe not created or not be watched", "name", memberName, "parent", hyperNode.Name)
+				continue
+			}
+
+			sc.buildTreeForHyperNode(memberHyperNode)
+			if _, ok = sc.HyperNodesInfo.HyperNodesSet[hyperNode.Name]; !ok {
+				sc.HyperNodesInfo.HyperNodesSet[hyperNode.Name] = sets.New[string]()
+			}
+			sc.HyperNodesInfo.HyperNodesSet[hyperNode.Name] = sc.HyperNodesInfo.HyperNodesSet[hyperNode.Name].Union(sc.HyperNodesInfo.HyperNodesSet[memberName])
+
+		default:
+			klog.ErrorS(nil, "Unknown member type", "type", member.Type)
+		}
+	}
+	sc.markAsProcessed(hyperNode.Name)
+	klog.V(4).InfoS("Successfully built HyperNodes with members", "name", hyperNode.Name, "nodeSets", sc.HyperNodesInfo.HyperNodesSet[hyperNode.Name])
+}
+
+func getTier(hyperNode *topologyv1alpha1.HyperNode) int {
+	tier, err := strconv.Atoi(hyperNode.Spec.Tier)
+	if err != nil {
+		klog.ErrorS(err, "Failed to convert tier to int", "hyperNodeName", hyperNode.Name)
+		return -1
+	}
+	return tier
+}
+
+func (sc *SchedulerCache) isProcessed(nodeName string) bool {
+	return sc.HyperNodesInfo.ProcessedNodes.Has(nodeName)
+}
+
+func (sc *SchedulerCache) markAsProcessed(nodeName string) {
+	sc.HyperNodesInfo.ProcessedNodes.Insert(nodeName)
 }

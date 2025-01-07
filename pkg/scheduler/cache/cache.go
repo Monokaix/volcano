@@ -135,8 +135,9 @@ type SchedulerCache struct {
 	defaultPriorityClass *schedulingv1.PriorityClass
 	defaultPriority      int32
 	CSINodesStatus       map[string]*schedulingapi.CSINodeStatusInfo
-	HyperNodesListByTier map[int][]string
-	HyperNodes           map[string]sets.Set[string]
+	//HyperNodesListByTier map[int][]string
+	//HyperNodes           map[string]sets.Set[string]
+	HyperNodesInfo *schedulingapi.HyperNodesInfo
 
 	NamespaceCollection map[string]*schedulingapi.NamespaceCollection
 
@@ -583,9 +584,10 @@ func newSchedulerCache(config *rest.Config, schedulerNames []string, defaultQueu
 		CSINodesStatus:      make(map[string]*schedulingapi.CSINodeStatusInfo),
 		imageStates:         make(map[string]*imageState),
 
-		// HyperNode info
-		HyperNodesListByTier: make(map[int][]string),
-		HyperNodes:           make(map[string]sets.Set[string]),
+		//// HyperNode info
+		//HyperNodesListByTier: make(map[int][]string),
+		//HyperNodes:           make(map[string]sets.Set[string]),
+		HyperNodesInfo: schedulingapi.NewHyperNodesInfo(),
 
 		NodeList:    []string{},
 		nodeWorkers: nodeWorkers,
@@ -801,6 +803,13 @@ func (sc *SchedulerCache) addEventHandler() {
 			DeleteFunc: sc.DeleteNumaInfoV1alpha1,
 		})
 	}
+
+	hyperNodeInformer := sc.vcInformerFactory.Topology().V1alpha1().HyperNodes()
+	hyperNodeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    sc.AddHyperNode,
+		UpdateFunc: sc.UpdateHyperNode,
+		DeleteFunc: sc.DeleteHyperNode,
+	})
 }
 
 // Run  starts the schedulerCache
@@ -1366,21 +1375,21 @@ func (sc *SchedulerCache) Snapshot() *schedulingapi.ClusterInfo {
 		}
 	}
 
-	// Snapshot hyperNodes.
-	copiedHyperNodesListByTier := make(map[int][]string, len(sc.HyperNodesListByTier))
-	for tier, row := range sc.HyperNodesListByTier {
-		copiedHyperNodesListByTier[tier] = make([]string, len(row))
-		copy(copiedHyperNodesListByTier[tier], row)
-	}
-
-	hyperNodeLength := make(map[string]int)
-	snapshot.HyperNodesListByTier = copiedHyperNodesListByTier
-	copiedHyperNodes := make(map[string]sets.Set[string], len(sc.HyperNodes))
-	for name, value := range sc.HyperNodes {
-		copiedHyperNodes[name] = value.Clone()
-		hyperNodeLength[name] = value.Len()
-	}
-	snapshot.HyperNodes = copiedHyperNodes
+	//// Snapshot hyperNodes.
+	//copiedHyperNodesListByTier := make(map[int][]string, len(sc.HyperNodesListByTier))
+	//for tier, row := range sc.HyperNodesListByTier {
+	//	copiedHyperNodesListByTier[tier] = make([]string, len(row))
+	//	copy(copiedHyperNodesListByTier[tier], row)
+	//}
+	//
+	//hyperNodeLength := make(map[string]int)
+	//snapshot.HyperNodesListByTier = copiedHyperNodesListByTier
+	//copiedHyperNodes := make(map[string]sets.Set[string], len(sc.HyperNodes))
+	//for name, value := range sc.HyperNodes {
+	//	copiedHyperNodes[name] = value.Clone()
+	//	hyperNodeLength[name] = value.Len()
+	//}
+	//snapshot.HyperNodes = copiedHyperNodes
 
 	for _, value := range sc.Queues {
 		snapshot.Queues[value.UID] = value.Clone()
@@ -1435,8 +1444,8 @@ func (sc *SchedulerCache) Snapshot() *schedulingapi.ClusterInfo {
 	}
 	wg.Wait()
 
-	klog.V(3).InfoS("SnapShot for scheduling", "jobNum", len(snapshot.Jobs), "QueueNum",
-		len(snapshot.Queues), "NodeNum", len(snapshot.Nodes), "tiers", snapshot.HyperNodesListByTier, "hyperNodeNum", hyperNodeLength)
+	//klog.V(3).InfoS("SnapShot for scheduling", "jobNum", len(snapshot.Jobs), "QueueNum",
+	//	len(snapshot.Queues), "NodeNum", len(snapshot.Nodes), "tiers", snapshot.HyperNodesListByTier, "hyperNodeNum", hyperNodeLength)
 
 	return snapshot
 }

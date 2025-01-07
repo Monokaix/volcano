@@ -18,8 +18,10 @@ package cache
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
+	topologyv1alpha1 "volcano.sh/apis/pkg/apis/topology/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -707,6 +709,59 @@ func TestSchedulerCache_SyncNode(t *testing.T) {
 				actualNodes[n] = i
 			}
 			assert.Equal(t, tt.expectedNodes, actualNodes)
+		})
+	}
+}
+
+func TestSchedulerCache_AddHyperNode(t *testing.T) {
+	selector := "exact"
+	tests := []struct {
+		name                         string
+		hypeNodes                    []*topologyv1alpha1.HyperNode
+		expectedHyperNodesListByTier map[int][]string
+		expectedHyperNodesSet        map[string]sets.Set[string]
+	}{
+		{
+			name: "Add hyperNodes",
+			hypeNodes: []*topologyv1alpha1.HyperNode{
+				util.BuildHyperNode("s6", "3", topologyv1alpha1.MemberTypeHyperNode, []string{"s4", "s5"}, selector),
+				util.BuildHyperNode("s5", "2", topologyv1alpha1.MemberTypeHyperNode, []string{"s2", "s3"}, selector),
+				util.BuildHyperNode("s0", "1", topologyv1alpha1.MemberTypeNode, []string{"node-0", "node-1"}, selector),
+				util.BuildHyperNode("s4", "2", topologyv1alpha1.MemberTypeHyperNode, []string{"s0", "s1"}, selector),
+				util.BuildHyperNode("s3", "1", topologyv1alpha1.MemberTypeNode, []string{"node-6", "node-7"}, selector),
+				util.BuildHyperNode("s1", "1", topologyv1alpha1.MemberTypeNode, []string{"node-2", "node-3"}, selector),
+				util.BuildHyperNode("s2", "1", topologyv1alpha1.MemberTypeNode, []string{"node-4", "node-5"}, selector),
+			},
+			expectedHyperNodesListByTier: map[int][]string{
+				1: {"s0", "s1", "s2", "s3"},
+				2: {"s4", "s5"},
+				3: {"s6"},
+			},
+			expectedHyperNodesSet: map[string]sets.Set[string]{
+				"s0": sets.New[string]("node-0", "node-1"),
+				"s1": sets.New[string]("node-2", "node-3"),
+				"s2": sets.New[string]("node-4", "node-5"),
+				"s3": sets.New[string]("node-6", "node-7"),
+				"s4": sets.New[string]("node-0", "node-1", "node-2", "node-3"),
+				"s5": sets.New[string]("node-4", "node-5", "node-6", "node-7"),
+				"s6": sets.New[string]("node-0", "node-1", "node-2", "node-3", "node-4", "node-5", "node-6", "node-7"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sc := NewDefaultMockSchedulerCache("volcano")
+			for _, hyperNode := range tt.hypeNodes {
+				sc.AddHyperNode(hyperNode)
+			}
+			for tier, expectedNodes := range tt.expectedHyperNodesListByTier {
+				actualNodes := sc.HyperNodesInfo.HyperNodesListByTier[tier]
+				sort.Strings(expectedNodes)
+				sort.Strings(actualNodes)
+				assert.Equal(t, expectedNodes, actualNodes, "HyperNodesListByTier tier %d mismatch", tier)
+			}
+			assert.Equal(t, tt.expectedHyperNodesSet, sc.HyperNodesInfo.HyperNodesSet)
 		})
 	}
 }
