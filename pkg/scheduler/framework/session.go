@@ -19,6 +19,7 @@ package framework
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -78,9 +79,10 @@ type Session struct {
 	// HyperNodesListByTier contains a list of hyperNodes by tier from down to top, nodes under the same hyperNode
 	// have the same topology domain, e.g., nodes under the same switch or tor, jobs allocated in the same
 	// hyperNode can gain a better performance, the lower the tier of hyperNode, the better performance.
-	HyperNodesListByTier map[int][]string
+	HyperNodesListByTier map[int]sets.Set[string]
 	// HyperNodes maps hyperNode Name -> nodes under the hyperNode.
-	HyperNodes map[string][]*api.NodeInfo
+	HyperNodes                map[string][]*api.NodeInfo
+	HyperNodesReadyToSchedule bool
 
 	plugins             map[string]Plugin
 	eventHandlers       []*EventHandler
@@ -194,7 +196,8 @@ func openSession(cache cache.Cache) *Session {
 	}
 	ssn.NodeList = util.GetNodeList(snapshot.Nodes, snapshot.NodeList)
 	ssn.HyperNodesListByTier = snapshot.HyperNodesListByTier
-	ssn.HyperNodes = util.GetHyperNodeList(snapshot.HyperNodes, snapshot.Nodes)
+	ssn.HyperNodes = util.GetHyperNodeList(snapshot.RealNodesSet, snapshot.Nodes)
+	ssn.HyperNodesReadyToSchedule = snapshot.HyperNodesReadyToSchedule
 	ssn.Nodes = snapshot.Nodes
 	ssn.CSINodesStatus = snapshot.CSINodesStatus
 	ssn.RevocableNodes = snapshot.RevocableNodes

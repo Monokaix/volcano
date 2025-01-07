@@ -19,9 +19,6 @@ package util
 import (
 	"context"
 	"fmt"
-	"sync"
-	"time"
-
 	v1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -31,7 +28,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-
+	"sync"
+	"time"
 	schedulingv1beta1 "volcano.sh/apis/pkg/apis/scheduling/v1beta1"
 
 	"volcano.sh/volcano/pkg/scheduler/api"
