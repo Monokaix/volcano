@@ -27,7 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/listers/core/v1"
+	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 
 	topologyv1alpha1 "volcano.sh/apis/pkg/apis/topology/v1alpha1"
@@ -47,14 +47,14 @@ type HyperNodesInfo struct {
 	// parentMap stores the parent of each HyperNode.
 	parentMap map[string]string
 	// nodeLister Lister to list Kubernetes nodes.
-	nodeLister v1.NodeLister
+	nodeLister listerv1.NodeLister
 
 	// ready indicates whether the HyperNodesInfo is ready (build process is complete).
 	ready *atomic.Bool
 }
 
 // NewHyperNodesInfo initializes a new HyperNodesInfo instance.
-func NewHyperNodesInfo(lister v1.NodeLister) *HyperNodesInfo {
+func NewHyperNodesInfo(lister listerv1.NodeLister) *HyperNodesInfo {
 	return &HyperNodesInfo{
 		hyperNodes:           make(map[string]*HyperNodeInfo),
 		hyperNodesListByTier: make(map[int]sets.Set[string]),
