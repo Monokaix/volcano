@@ -81,7 +81,8 @@ type Session struct {
 	// hyperNode can gain a better performance, the lower the tier of hyperNode, the better performance.
 	HyperNodesListByTier map[int]sets.Set[string]
 	// HyperNodes maps hyperNode Name -> nodes under the hyperNode.
-	HyperNodes map[string][]*api.NodeInfo
+	HyperNodes                map[string][]*api.NodeInfo
+	HyperNodesReadyToSchedule bool
 
 	plugins             map[string]Plugin
 	eventHandlers       []*EventHandler
@@ -195,7 +196,8 @@ func openSession(cache cache.Cache) *Session {
 	}
 	ssn.NodeList = util.GetNodeList(snapshot.Nodes, snapshot.NodeList)
 	ssn.HyperNodesListByTier = snapshot.HyperNodesListByTier
-	ssn.HyperNodes = util.GetHyperNodeList(snapshot.HyperNodes, snapshot.Nodes)
+	ssn.HyperNodes = util.GetHyperNodeList(snapshot.RealNodesSet, snapshot.Nodes)
+	ssn.HyperNodesReadyToSchedule = snapshot.HyperNodesReadyToSchedule
 	ssn.Nodes = snapshot.Nodes
 	ssn.CSINodesStatus = snapshot.CSINodesStatus
 	ssn.RevocableNodes = snapshot.RevocableNodes
