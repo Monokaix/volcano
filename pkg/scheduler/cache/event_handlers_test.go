@@ -736,8 +736,7 @@ func TestSchedulerCache_AddHyperNode(t *testing.T) {
 		hypeNodesToAdd               []*topologyv1alpha1.HyperNode
 		expectedHyperNodesListByTier map[int]sets.Set[string]
 		expectedRealNodesSet         map[string]sets.Set[string]
-		expectedParentMap            map[string]string
-		expectedHyperNodes           map[string]string
+		expectedHyperNodesInfo       map[string]string
 		ready                        bool
 	}{
 		{
@@ -758,22 +757,14 @@ func TestSchedulerCache_AddHyperNode(t *testing.T) {
 				"s5": sets.New[string]("node-4", "node-5", "node-6", "node-7"),
 				"s6": sets.New[string]("node-0", "node-1", "node-2", "node-3", "node-4", "node-5", "node-6", "node-7"),
 			},
-			expectedParentMap: map[string]string{
-				"s0": "s4",
-				"s1": "s4",
-				"s2": "s5",
-				"s3": "s5",
-				"s4": "s6",
-				"s5": "s6",
-			},
-			expectedHyperNodes: map[string]string{
-				"s0": schedulingapi.NewHyperNodeInfo(s0, 1).String(),
-				"s1": schedulingapi.NewHyperNodeInfo(s1, 1).String(),
-				"s2": schedulingapi.NewHyperNodeInfo(s2, 1).String(),
-				"s3": schedulingapi.NewHyperNodeInfo(s3, 1).String(),
-				"s4": schedulingapi.NewHyperNodeInfo(s4, 2).String(),
-				"s5": schedulingapi.NewHyperNodeInfo(s5, 2).String(),
-				"s6": schedulingapi.NewHyperNodeInfo(s6, 3).String(),
+			expectedHyperNodesInfo: map[string]string{
+				"s0": "Name: s0, Tier: 1, Parent: s4",
+				"s1": "Name: s1, Tier: 1, Parent: s4",
+				"s2": "Name: s2, Tier: 1, Parent: s5",
+				"s3": "Name: s3, Tier: 1, Parent: s5",
+				"s4": "Name: s4, Tier: 2, Parent: s6",
+				"s5": "Name: s5, Tier: 2, Parent: s6",
+				"s6": "Name: s6, Tier: 3, Parent: ",
 			},
 			ready: true,
 		},
@@ -803,22 +794,14 @@ func TestSchedulerCache_AddHyperNode(t *testing.T) {
 				"s5": sets.New[string]("node-6", "node-7", "prefix-0", "prefix-1"),
 				"s6": sets.New[string]("node-0", "node-1", "node-2", "node-3", "node-6", "node-7", "prefix-0", "prefix-1"),
 			},
-			expectedParentMap: map[string]string{
-				"s0": "s4",
-				"s1": "s4",
-				"s2": "s5",
-				"s3": "s5",
-				"s4": "s6",
-				"s5": "s6",
-			},
-			expectedHyperNodes: map[string]string{
-				"s0": schedulingapi.NewHyperNodeInfo(s0, 1).String(),
-				"s1": schedulingapi.NewHyperNodeInfo(s1, 1).String(),
-				"s2": schedulingapi.NewHyperNodeInfo(s2, 1).String(),
-				"s3": schedulingapi.NewHyperNodeInfo(s3, 1).String(),
-				"s4": schedulingapi.NewHyperNodeInfo(s4, 2).String(),
-				"s5": schedulingapi.NewHyperNodeInfo(s5, 2).String(),
-				"s6": schedulingapi.NewHyperNodeInfo(s6, 3).String(),
+			expectedHyperNodesInfo: map[string]string{
+				"s0": "Name: s0, Tier: 1, Parent: s4",
+				"s1": "Name: s1, Tier: 1, Parent: s4",
+				"s2": "Name: s2, Tier: 1, Parent: s5",
+				"s3": "Name: s3, Tier: 1, Parent: s5",
+				"s4": "Name: s4, Tier: 2, Parent: s6",
+				"s5": "Name: s5, Tier: 2, Parent: s6",
+				"s6": "Name: s6, Tier: 3, Parent: ",
 			},
 			ready: true,
 		},
@@ -837,19 +820,13 @@ func TestSchedulerCache_AddHyperNode(t *testing.T) {
 				"s4": sets.New[string]("node-0", "node-1", "node-2", "node-3"),
 				"s5": sets.New[string]("node-4", "node-5", "node-6", "node-7"),
 			},
-			expectedParentMap: map[string]string{
-				"s0": "s4",
-				"s1": "s4",
-				"s2": "s5",
-				"s3": "s5",
-			},
-			expectedHyperNodes: map[string]string{
-				"s0": schedulingapi.NewHyperNodeInfo(s0, 1).String(),
-				"s1": schedulingapi.NewHyperNodeInfo(s1, 1).String(),
-				"s2": schedulingapi.NewHyperNodeInfo(s2, 1).String(),
-				"s3": schedulingapi.NewHyperNodeInfo(s3, 1).String(),
-				"s4": schedulingapi.NewHyperNodeInfo(s4, 2).String(),
-				"s5": schedulingapi.NewHyperNodeInfo(s5, 2).String(),
+			expectedHyperNodesInfo: map[string]string{
+				"s0": "Name: s0, Tier: 1, Parent: s4",
+				"s1": "Name: s1, Tier: 1, Parent: s4",
+				"s2": "Name: s2, Tier: 1, Parent: s5",
+				"s3": "Name: s3, Tier: 1, Parent: s5",
+				"s4": "Name: s4, Tier: 2, Parent: ",
+				"s5": "Name: s5, Tier: 2, Parent: ",
 			},
 			ready: true,
 		},
@@ -870,9 +847,8 @@ func TestSchedulerCache_AddHyperNode(t *testing.T) {
 			}
 			assert.Equal(t, tt.expectedHyperNodesListByTier, sc.HyperNodesInfo.HyperNodesListByTier())
 			assert.Equal(t, tt.expectedRealNodesSet, sc.HyperNodesInfo.RealNodesSet())
-			assert.Equal(t, tt.expectedParentMap, sc.HyperNodesInfo.ParentMap())
-			actualHyperNodes := getActualNodeSet(sc.HyperNodesInfo.HyperNodes())
-			assert.Equal(t, tt.expectedHyperNodes, actualHyperNodes)
+			actualHyperNodes := sc.HyperNodesInfo.HyperNodesInfo()
+			assert.Equal(t, tt.expectedHyperNodesInfo, actualHyperNodes)
 			assert.Equal(t, tt.ready, sc.HyperNodesInfo.Ready())
 		})
 	}
@@ -898,8 +874,7 @@ func TestSchedulerCache_UpdateHyperNode(t *testing.T) {
 		hyperNodesToUpdated          []*topologyv1alpha1.HyperNode
 		expectedHyperNodesListByTier []map[int]sets.Set[string]
 		expectedRealNodesSet         []map[string]sets.Set[string]
-		expectedParentMap            []map[string]string
-		expectedHyperNodes           []map[string]string
+		expectedHyperNodesInfo       []map[string]string
 		ready                        bool
 	}{
 		{
@@ -943,41 +918,24 @@ func TestSchedulerCache_UpdateHyperNode(t *testing.T) {
 					"s6": sets.New[string]("node-0", "node-1", "node-2", "node-3", "node-4", "node-5", "node-6", "node-7"),
 				},
 			},
-			expectedParentMap: []map[string]string{
+			expectedHyperNodesInfo: []map[string]string{
 				{
-					"s0": "s4",
-					"s1": "s4",
-					"s3": "s5",
-					"s4": "s6",
-					"s5": "s6",
+					"s0": "Name: s0, Tier: 1, Parent: s4",
+					"s1": "Name: s1, Tier: 1, Parent: s4",
+					"s2": "Name: s2, Tier: 1, Parent: ",
+					"s3": "Name: s3, Tier: 1, Parent: s5",
+					"s4": "Name: s4, Tier: 2, Parent: s6",
+					"s5": "Name: s5, Tier: 2, Parent: s6",
+					"s6": "Name: s6, Tier: 3, Parent: ",
 				},
 				{
-					"s0": "s4",
-					"s1": "s4",
-					"s2": "s4",
-					"s3": "s5",
-					"s4": "s6",
-					"s5": "s6",
-				},
-			},
-			expectedHyperNodes: []map[string]string{
-				{
-					"s0": schedulingapi.NewHyperNodeInfo(s0, 1).String(),
-					"s1": schedulingapi.NewHyperNodeInfo(s1, 1).String(),
-					"s2": schedulingapi.NewHyperNodeInfo(s2, 1).String(),
-					"s3": schedulingapi.NewHyperNodeInfo(s3, 1).String(),
-					"s4": schedulingapi.NewHyperNodeInfo(s4, 2).String(),
-					"s5": schedulingapi.NewHyperNodeInfo(s5, 2).String(),
-					"s6": schedulingapi.NewHyperNodeInfo(s6, 3).String(),
-				},
-				{
-					"s0": schedulingapi.NewHyperNodeInfo(s0, 1).String(),
-					"s1": schedulingapi.NewHyperNodeInfo(s1, 1).String(),
-					"s2": schedulingapi.NewHyperNodeInfo(s2, 1).String(),
-					"s3": schedulingapi.NewHyperNodeInfo(s3, 1).String(),
-					"s4": schedulingapi.NewHyperNodeInfo(s4, 2).String(),
-					"s5": schedulingapi.NewHyperNodeInfo(s5, 2).String(),
-					"s6": schedulingapi.NewHyperNodeInfo(s6, 3).String(),
+					"s0": "Name: s0, Tier: 1, Parent: s4",
+					"s1": "Name: s1, Tier: 1, Parent: s4",
+					"s2": "Name: s2, Tier: 1, Parent: s4",
+					"s3": "Name: s3, Tier: 1, Parent: s5",
+					"s4": "Name: s4, Tier: 2, Parent: s6",
+					"s5": "Name: s5, Tier: 2, Parent: s6",
+					"s6": "Name: s6, Tier: 3, Parent: ",
 				},
 			},
 			ready: true,
@@ -1006,25 +964,15 @@ func TestSchedulerCache_UpdateHyperNode(t *testing.T) {
 					"s6": sets.New[string]("node-0", "node-1", "node-2", "node-3", "node-4", "node-5"),
 				},
 			},
-			expectedParentMap: []map[string]string{
+			expectedHyperNodesInfo: []map[string]string{
 				{
-					"s0": "s4",
-					"s1": "s4",
-					"s2": "s5",
-					"s3": "s5",
-					"s4": "s6",
-					"s5": "s6",
-				},
-			},
-			expectedHyperNodes: []map[string]string{
-				{
-					"s0": schedulingapi.NewHyperNodeInfo(s0, 1).String(),
-					"s1": schedulingapi.NewHyperNodeInfo(s1, 1).String(),
-					"s2": schedulingapi.NewHyperNodeInfo(s2, 1).String(),
-					"s3": schedulingapi.NewHyperNodeInfo(s3, 1).String(),
-					"s4": schedulingapi.NewHyperNodeInfo(s4, 2).String(),
-					"s5": schedulingapi.NewHyperNodeInfo(s5, 2).String(),
-					"s6": schedulingapi.NewHyperNodeInfo(s6, 3).String(),
+					"s0": "Name: s0, Tier: 1, Parent: s4",
+					"s1": "Name: s1, Tier: 1, Parent: s4",
+					"s2": "Name: s2, Tier: 1, Parent: s5",
+					"s3": "Name: s3, Tier: 1, Parent: s5",
+					"s4": "Name: s4, Tier: 2, Parent: s6",
+					"s5": "Name: s5, Tier: 2, Parent: s6",
+					"s6": "Name: s6, Tier: 3, Parent: ",
 				},
 			},
 			ready: true,
@@ -1057,25 +1005,15 @@ func TestSchedulerCache_UpdateHyperNode(t *testing.T) {
 					"s6": sets.New[string]("node-0", "node-1", "node-2", "node-3", "4-suffix", "5-suffix", "node-6", "node-7"),
 				},
 			},
-			expectedParentMap: []map[string]string{
+			expectedHyperNodesInfo: []map[string]string{
 				{
-					"s0": "s4",
-					"s1": "s4",
-					"s2": "s5",
-					"s3": "s5",
-					"s4": "s6",
-					"s5": "s6",
-				},
-			},
-			expectedHyperNodes: []map[string]string{
-				{
-					"s0": schedulingapi.NewHyperNodeInfo(s0, 1).String(),
-					"s1": schedulingapi.NewHyperNodeInfo(s1, 1).String(),
-					"s2": schedulingapi.NewHyperNodeInfo(s2, 1).String(),
-					"s3": schedulingapi.NewHyperNodeInfo(s3, 1).String(),
-					"s4": schedulingapi.NewHyperNodeInfo(s4, 2).String(),
-					"s5": schedulingapi.NewHyperNodeInfo(s5, 2).String(),
-					"s6": schedulingapi.NewHyperNodeInfo(s6, 3).String(),
+					"s0": "Name: s0, Tier: 1, Parent: s4",
+					"s1": "Name: s1, Tier: 1, Parent: s4",
+					"s2": "Name: s2, Tier: 1, Parent: s5",
+					"s3": "Name: s3, Tier: 1, Parent: s5",
+					"s4": "Name: s4, Tier: 2, Parent: s6",
+					"s5": "Name: s5, Tier: 2, Parent: s6",
+					"s6": "Name: s6, Tier: 3, Parent: ",
 				},
 			},
 			ready: true,
@@ -1098,13 +1036,9 @@ func TestSchedulerCache_UpdateHyperNode(t *testing.T) {
 			for i, hyperNode := range tt.hyperNodesToUpdated {
 				sc.UpdateHyperNode(nil, hyperNode)
 				assert.Equal(t, tt.expectedHyperNodesListByTier[i], sc.HyperNodesInfo.HyperNodesListByTier())
-				if !assert.Equal(t, tt.expectedRealNodesSet[i], sc.HyperNodesInfo.RealNodesSet(), "RealNodesSet mismatch, index %d", i) {
-					fmt.Printf("%+v\n", tt.expectedRealNodesSet[i])
-					fmt.Printf("%+v\n", sc.HyperNodesInfo.RealNodesSet())
-				}
-				assert.Equal(t, tt.expectedParentMap[i], sc.HyperNodesInfo.ParentMap())
-				actualHyperNodes := getActualNodeSet(sc.HyperNodesInfo.HyperNodes())
-				assert.Equal(t, tt.expectedHyperNodes[i], actualHyperNodes)
+				assert.Equal(t, tt.expectedRealNodesSet[i], sc.HyperNodesInfo.RealNodesSet(), "RealNodesSet mismatch, index %d", i)
+				actualHyperNodes := sc.HyperNodesInfo.HyperNodesInfo()
+				assert.Equal(t, tt.expectedHyperNodesInfo[i], actualHyperNodes)
 				assert.Equal(t, tt.ready, sc.HyperNodesInfo.Ready())
 			}
 		})
@@ -1129,7 +1063,7 @@ func TestSchedulerCache_DeleteHyperNode(t *testing.T) {
 		expectedHyperNodesListByTier map[int]sets.Set[string]
 		expectedParentMap            map[string]string
 		expectedRealNodesSet         map[string]sets.Set[string]
-		expectedHyperNodes           map[string]string
+		expectedHyperNodesInfo       map[string]string
 		ready                        bool
 	}{
 		{
@@ -1146,7 +1080,6 @@ func TestSchedulerCache_DeleteHyperNode(t *testing.T) {
 				"s3": "s5",
 				"s5": "s6",
 			},
-
 			expectedRealNodesSet: map[string]sets.Set[string]{
 				"s0": sets.New[string]("node-0", "node-1"),
 				"s1": sets.New[string]("node-2", "node-3"),
@@ -1155,14 +1088,13 @@ func TestSchedulerCache_DeleteHyperNode(t *testing.T) {
 				"s5": sets.New[string]("node-4", "node-5", "node-6", "node-7"),
 				"s6": sets.New[string]("node-4", "node-5", "node-6", "node-7"),
 			},
-
-			expectedHyperNodes: map[string]string{
-				"s0": schedulingapi.NewHyperNodeInfo(s0, 1).String(),
-				"s1": schedulingapi.NewHyperNodeInfo(s1, 1).String(),
-				"s2": schedulingapi.NewHyperNodeInfo(s2, 1).String(),
-				"s3": schedulingapi.NewHyperNodeInfo(s3, 1).String(),
-				"s5": schedulingapi.NewHyperNodeInfo(s5, 2).String(),
-				"s6": schedulingapi.NewHyperNodeInfo(s6, 3).String(),
+			expectedHyperNodesInfo: map[string]string{
+				"s0": "Name: s0, Tier: 1, Parent: ",
+				"s1": "Name: s1, Tier: 1, Parent: ",
+				"s2": "Name: s2, Tier: 1, Parent: s5",
+				"s3": "Name: s3, Tier: 1, Parent: s5",
+				"s5": "Name: s5, Tier: 2, Parent: s6",
+				"s6": "Name: s6, Tier: 3, Parent: ",
 			},
 			ready: true,
 		},
@@ -1190,13 +1122,13 @@ func TestSchedulerCache_DeleteHyperNode(t *testing.T) {
 				"s5": sets.New[string]("node-4", "node-5", "node-6", "node-7"),
 				"s6": sets.New[string]("node-2", "node-3", "node-4", "node-5", "node-6", "node-7"),
 			},
-			expectedHyperNodes: map[string]string{
-				"s1": schedulingapi.NewHyperNodeInfo(s1, 1).String(),
-				"s2": schedulingapi.NewHyperNodeInfo(s2, 1).String(),
-				"s3": schedulingapi.NewHyperNodeInfo(s3, 1).String(),
-				"s4": schedulingapi.NewHyperNodeInfo(s4, 2).String(),
-				"s5": schedulingapi.NewHyperNodeInfo(s5, 2).String(),
-				"s6": schedulingapi.NewHyperNodeInfo(s6, 3).String(),
+			expectedHyperNodesInfo: map[string]string{
+				"s1": "Name: s1, Tier: 1, Parent: s4",
+				"s2": "Name: s2, Tier: 1, Parent: s5",
+				"s3": "Name: s3, Tier: 1, Parent: s5",
+				"s4": "Name: s4, Tier: 2, Parent: s6",
+				"s5": "Name: s5, Tier: 2, Parent: s6",
+				"s6": "Name: s6, Tier: 3, Parent: ",
 			},
 			ready: true,
 		},
@@ -1222,13 +1154,13 @@ func TestSchedulerCache_DeleteHyperNode(t *testing.T) {
 				"s4": sets.New[string]("node-0", "node-1", "node-2", "node-3"),
 				"s5": sets.New[string]("node-4", "node-5", "node-6", "node-7"),
 			},
-			expectedHyperNodes: map[string]string{
-				"s0": schedulingapi.NewHyperNodeInfo(s0, 1).String(),
-				"s1": schedulingapi.NewHyperNodeInfo(s1, 1).String(),
-				"s2": schedulingapi.NewHyperNodeInfo(s2, 1).String(),
-				"s3": schedulingapi.NewHyperNodeInfo(s3, 1).String(),
-				"s4": schedulingapi.NewHyperNodeInfo(s4, 2).String(),
-				"s5": schedulingapi.NewHyperNodeInfo(s5, 2).String(),
+			expectedHyperNodesInfo: map[string]string{
+				"s0": "Name: s0, Tier: 1, Parent: s4",
+				"s1": "Name: s1, Tier: 1, Parent: s4",
+				"s2": "Name: s2, Tier: 1, Parent: s5",
+				"s3": "Name: s3, Tier: 1, Parent: s5",
+				"s4": "Name: s4, Tier: 2, Parent: ",
+				"s5": "Name: s5, Tier: 2, Parent: ",
 			},
 			ready: true,
 		},
@@ -1244,23 +1176,10 @@ func TestSchedulerCache_DeleteHyperNode(t *testing.T) {
 			log.Println("begin delete...")
 			sc.DeleteHyperNode(tt.typerNodesToDelete)
 			assert.Equal(t, tt.expectedHyperNodesListByTier, sc.HyperNodesInfo.HyperNodesListByTier())
-			if !assert.Equal(t, tt.expectedRealNodesSet, sc.HyperNodesInfo.RealNodesSet(), "RealNodesSet mismatch") {
-				fmt.Printf("expect: %+v\n", tt.expectedRealNodesSet)
-				fmt.Printf("actual: %+v\n", sc.HyperNodesInfo.RealNodesSet())
-			}
-			assert.Equal(t, tt.expectedParentMap, sc.HyperNodesInfo.ParentMap())
-
-			actualHyperNodes := getActualNodeSet(sc.HyperNodesInfo.HyperNodes())
-			assert.Equal(t, tt.expectedHyperNodes, actualHyperNodes)
+			assert.Equal(t, tt.expectedRealNodesSet, sc.HyperNodesInfo.RealNodesSet(), "RealNodesSet mismatch")
+			actualHyperNodes := sc.HyperNodesInfo.HyperNodesInfo()
+			assert.Equal(t, tt.expectedHyperNodesInfo, actualHyperNodes)
 			assert.Equal(t, tt.ready, sc.HyperNodesInfo.Ready())
 		})
 	}
-}
-
-func getActualNodeSet(hns map[string]*schedulingapi.HyperNodeInfo) map[string]string {
-	actualHyperNodes := make(map[string]string)
-	for name, hn := range hns {
-		actualHyperNodes[name] = hn.String()
-	}
-	return actualHyperNodes
 }

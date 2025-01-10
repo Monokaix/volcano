@@ -1103,7 +1103,7 @@ func TestAdmitHierarchicalQueues(t *testing.T) {
 		reviewResponse *admissionv1.AdmissionResponse
 	}{
 		{
-			Name: "Parent Queue has jobs",
+			Name: "parent Queue has jobs",
 			AR: admissionv1.AdmissionReview{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "AdmissionReview",
@@ -1135,7 +1135,7 @@ func TestAdmitHierarchicalQueues(t *testing.T) {
 			},
 		},
 		{
-			Name: "Parent Queue has no jobs",
+			Name: "parent Queue has no jobs",
 			AR: admissionv1.AdmissionReview{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "AdmissionReview",
