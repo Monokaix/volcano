@@ -30,9 +30,18 @@ import (
 
 func TestHyperNodesInfo_UpdateHyperNode_Normal(t *testing.T) {
 	selector := "exact"
-	s0 := BuildHyperNode("s0", 1, topologyv1alpha1.MemberTypeNode, []string{"node-0", "node-1"}, selector)
-	s1 := BuildHyperNode("s1", 1, topologyv1alpha1.MemberTypeNode, []string{"node-2", "node-3"}, selector)
-	s2 := BuildHyperNode("s2", 2, topologyv1alpha1.MemberTypeHyperNode, []string{"s1", "s0"}, selector)
+	s0 := BuildHyperNode("s0", 1, []MemberConfig{
+		{"node-0", topologyv1alpha1.MemberTypeNode, selector},
+		{"node-1", topologyv1alpha1.MemberTypeNode, selector},
+	})
+	s1 := BuildHyperNode("s1", 1, []MemberConfig{
+		{"node-2", topologyv1alpha1.MemberTypeNode, selector},
+		{"node-3", topologyv1alpha1.MemberTypeNode, selector},
+	})
+	s2 := BuildHyperNode("s2", 2, []MemberConfig{
+		{"s1", topologyv1alpha1.MemberTypeHyperNode, selector},
+		{"s0", topologyv1alpha1.MemberTypeHyperNode, selector},
+	})
 	initialHyperNodes := []*topologyv1alpha1.HyperNode{s2, s0, s1}
 
 	tests := []struct {
@@ -86,11 +95,21 @@ func TestHyperNodesInfo_UpdateHyperNode_Normal(t *testing.T) {
 
 func TestHyperNodesInfo_UpdateHyperNode_WithCycle(t *testing.T) {
 	selector := "exact"
-	s0 := BuildHyperNode("s0", 1, topologyv1alpha1.MemberTypeNode, []string{"node-0", "node-1"}, selector)
-	s1 := BuildHyperNode("s1", 2, topologyv1alpha1.MemberTypeHyperNode, []string{"s0", "s3"}, selector)
-	s11 := BuildHyperNode("s1", 2, topologyv1alpha1.MemberTypeHyperNode, []string{"s0"}, selector)
-	s2 := BuildHyperNode("s2", 3, topologyv1alpha1.MemberTypeHyperNode, []string{"s1"}, selector)
-	s3 := BuildHyperNode("s3", 4, topologyv1alpha1.MemberTypeHyperNode, []string{"s2"}, selector)
+	s0 := BuildHyperNode("s0", 1, []MemberConfig{
+		{"node-0", topologyv1alpha1.MemberTypeNode, selector},
+		{"node-1", topologyv1alpha1.MemberTypeNode, selector}})
+	s1 := BuildHyperNode("s1", 2, []MemberConfig{
+		{"s0", topologyv1alpha1.MemberTypeHyperNode, selector},
+		{"s3", topologyv1alpha1.MemberTypeHyperNode, selector}})
+	s11 := BuildHyperNode("s1", 2, []MemberConfig{
+		{"s0", topologyv1alpha1.MemberTypeHyperNode, selector},
+	})
+	s2 := BuildHyperNode("s2", 3, []MemberConfig{
+		{"s1", topologyv1alpha1.MemberTypeHyperNode, selector},
+	})
+	s3 := BuildHyperNode("s3", 4, []MemberConfig{
+		{"s2", topologyv1alpha1.MemberTypeHyperNode, selector},
+	})
 	initialHyperNodes := []*topologyv1alpha1.HyperNode{s2, s0, s1, s3}
 
 	tests := []struct {
@@ -160,10 +179,19 @@ func TestHyperNodesInfo_UpdateHyperNode_WithCycle(t *testing.T) {
 
 func TestHyperNodesInfo_UpdateHyperNode_MultipleParents(t *testing.T) {
 	selector := "exact"
-	s0 := BuildHyperNode("s0", 1, topologyv1alpha1.MemberTypeNode, []string{"node-0", "node-1"}, selector)
-	s1 := BuildHyperNode("s1", 2, topologyv1alpha1.MemberTypeHyperNode, []string{"s0"}, selector)
-	s2 := BuildHyperNode("s2", 3, topologyv1alpha1.MemberTypeHyperNode, []string{"s0"}, selector)
-	s22 := BuildHyperNode("s2", 3, topologyv1alpha1.MemberTypeHyperNode, []string{"s1"}, selector)
+	s0 := BuildHyperNode("s0", 1, []MemberConfig{
+		{Name: "node-0", Type: topologyv1alpha1.MemberTypeNode, Selector: selector},
+		{Name: "node-1", Type: topologyv1alpha1.MemberTypeNode, Selector: selector},
+	})
+	s1 := BuildHyperNode("s1", 2, []MemberConfig{
+		{Name: "s0", Type: topologyv1alpha1.MemberTypeHyperNode, Selector: selector},
+	})
+	s2 := BuildHyperNode("s2", 3, []MemberConfig{
+		{Name: "s0", Type: topologyv1alpha1.MemberTypeHyperNode, Selector: selector},
+	})
+	s22 := BuildHyperNode("s2", 3, []MemberConfig{
+		{Name: "s1", Type: topologyv1alpha1.MemberTypeHyperNode, Selector: selector},
+	})
 	initialHyperNodes := []*topologyv1alpha1.HyperNode{s0, s1, s2}
 
 	tests := []struct {
@@ -223,6 +251,59 @@ func TestHyperNodesInfo_UpdateHyperNode_MultipleParents(t *testing.T) {
 			if !errOccurred && tt.expectError {
 				t.Errorf("expect error but got none")
 			}
+		})
+	}
+}
+
+func TestHyperNodesInfo_GetRegexSelectorLeafHyperNodes(t *testing.T) {
+	exactSelector := "exact"
+	regexSelector := "regex"
+	s0 := BuildHyperNode("s0", 1, []MemberConfig{
+		{"node-1", topologyv1alpha1.MemberTypeNode, exactSelector},
+		{"node-1", topologyv1alpha1.MemberTypeNode, exactSelector},
+	})
+	s1 := BuildHyperNode("s1", 1, []MemberConfig{
+		{"node-2", topologyv1alpha1.MemberTypeNode, regexSelector},
+		{"node-3", topologyv1alpha1.MemberTypeNode, regexSelector},
+	})
+	s2 := BuildHyperNode("s2", 1, []MemberConfig{
+		{"node-4", topologyv1alpha1.MemberTypeNode, regexSelector},
+		{"node-5", topologyv1alpha1.MemberTypeHyperNode, exactSelector},
+	})
+	s3 := BuildHyperNode("s3", 1, []MemberConfig{
+		{"node-6", topologyv1alpha1.MemberTypeNode, regexSelector},
+		{"node-7", topologyv1alpha1.MemberTypeNode, exactSelector},
+	})
+	s4 := BuildHyperNode("s4", 2, []MemberConfig{
+		{"s0", topologyv1alpha1.MemberTypeHyperNode, exactSelector},
+		{"s1", topologyv1alpha1.MemberTypeHyperNode, exactSelector},
+	})
+	s5 := BuildHyperNode("s5", 2, []MemberConfig{
+		{"s2", topologyv1alpha1.MemberTypeHyperNode, regexSelector},
+		{"s3", topologyv1alpha1.MemberTypeHyperNode, exactSelector},
+	})
+	s6 := BuildHyperNode("s6", 3, []MemberConfig{
+		{"s4", topologyv1alpha1.MemberTypeHyperNode, exactSelector},
+		{"s5", topologyv1alpha1.MemberTypeHyperNode, exactSelector},
+	})
+	tests := []struct {
+		name      string
+		hyperNods []*topologyv1alpha1.HyperNode
+		want      sets.Set[string]
+	}{
+		{
+			name:      "get all leaf hyperNodes correctly",
+			hyperNods: []*topologyv1alpha1.HyperNode{s0, s1, s2, s3, s4, s5, s6},
+			want:      sets.New[string]("s1", "s3"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hni := NewHyperNodesInfo(nil)
+			for _, hn := range tt.hyperNods {
+				hni.hyperNodes[hn.Name] = NewHyperNodeInfo(hn)
+			}
+			assert.Equalf(t, tt.want, hni.GetRegexSelectorLeafHyperNodes(), "GetRegexSelcectorLeafHyperNodes()")
 		})
 	}
 }

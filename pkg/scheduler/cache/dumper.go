@@ -75,7 +75,7 @@ func encodeCache(file *os.File, v ...interface{}) error {
 // dumpAll prints all information to log
 func (d *Dumper) dumpAll() {
 	snapshot := d.Cache.Snapshot()
-	klog.Info("Dump of nodes info in scheduler cache")
+	klog.Info("Dump of initialNodes info in scheduler cache")
 	for _, nodeInfo := range snapshot.Nodes {
 		klog.Info(d.printNodeInfo(nodeInfo))
 	}

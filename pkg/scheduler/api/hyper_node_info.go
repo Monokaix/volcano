@@ -107,6 +107,15 @@ func (hni *HyperNodesInfo) HyperNodes() map[string]*HyperNodeInfo {
 	return hni.hyperNodes
 }
 
+// HyperNode returns a hyperNode by name.
+func (hni *HyperNodesInfo) HyperNode(name string) *topologyv1alpha1.HyperNode {
+	hn := hni.hyperNodes[name]
+	if hn == nil {
+		return nil
+	}
+	return hn.HyperNode
+}
+
 // HyperNodesListByTier returns a deep copy of the map that groups HyperNode names by their tier.
 // This ensures that the returned map is independent of the original, preventing unintended modifications.
 func (hni *HyperNodesInfo) HyperNodesListByTier() map[int]sets.Set[string] {
@@ -312,6 +321,32 @@ func (hni *HyperNodesInfo) getChildren(hyperNodeName string) sets.Set[string] {
 		}
 	}
 	return children
+}
+
+// GetRegexSelectorLeafHyperNodes returns leaf hyperNodes whose member's selector is regex match.
+func (hni *HyperNodesInfo) GetRegexSelectorLeafHyperNodes() sets.Set[string] {
+	leaf := sets.New[string]()
+	for name, hnInfo := range hni.hyperNodes {
+		if hnInfo == nil || hnInfo.HyperNode == nil {
+			continue
+		}
+
+		isLeaf := true
+		hasRegexMatch := false
+		for _, member := range hnInfo.HyperNode.Spec.Members {
+			if member.Type == topologyv1alpha1.MemberTypeHyperNode {
+				isLeaf = false
+				break
+			}
+			if member.Selector.RegexMatch != nil {
+				hasRegexMatch = true
+			}
+		}
+		if isLeaf && hasRegexMatch {
+			leaf.Insert(name)
+		}
+	}
+	return leaf
 }
 
 // setParent sets the parent of a HyperNode member.

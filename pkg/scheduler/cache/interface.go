@@ -28,7 +28,7 @@ import (
 	"volcano.sh/volcano/pkg/scheduler/capabilities/volumebinding"
 )
 
-// Cache collects pods/nodes/queues information
+// Cache collects pods/initialNodes/queues information
 // and provides information snapshot
 type Cache interface {
 	// Run start informer
