@@ -19,6 +19,7 @@ IMAGE_PREFIX=volcanosh
 CRD_OPTIONS ?= "crd:crdVersions=v1,generateEmbeddedObjectMeta=true"
 CRD_OPTIONS_EXCLUDE_DESCRIPTION=${CRD_OPTIONS}",maxDescLen=0"
 CC ?= "gcc"
+MUSL_CC ?= "/usr/local/musl/bin/musl-gcc"
 SUPPORT_PLUGINS ?= "no"
 CRD_VERSION ?= v1
 BUILDX_OUTPUT_TYPE ?= "docker"
@@ -73,13 +74,17 @@ init:
 
 vc-scheduler: init
 	if [ ${SUPPORT_PLUGINS} = "yes" ];then\
-		CC=${CC} CGO_ENABLED=1 go build -ldflags ${LD_FLAGS} -o ${BIN_DIR}/vc-scheduler ./cmd/scheduler;\
+		CC=${MUSL_CC} CGO_ENABLED=1 go build -ldflags ${LD_FLAGS_CGO} -o ${BIN_DIR}/vc-scheduler ./cmd/scheduler;\
 	else\
 		CC=${CC} CGO_ENABLED=0 go build -ldflags ${LD_FLAGS} -o ${BIN_DIR}/vc-scheduler ./cmd/scheduler;\
 	fi;
 
 vc-controller-manager: init
-	CC=${CC} CGO_ENABLED=0 go build -ldflags ${LD_FLAGS} -o ${BIN_DIR}/vc-controller-manager ./cmd/controller-manager
+	if [ ${SUPPORT_PLUGINS} = "yes" ];then\
+		CC=${MUSL_CC} CGO_ENABLED=1 go build -ldflags ${LD_FLAGS_CGO} -o ${BIN_DIR}/vc-controller-manager ./cmd/controller-manager;\
+	else\
+		CC=${CC} CGO_ENABLED=0 go build -ldflags ${LD_FLAGS} -o ${BIN_DIR}/vc-controller-manager ./cmd/controller-manager;\
+	fi;
 
 vc-webhook-manager: init
 	CC=${CC} CGO_ENABLED=0 go build -ldflags ${LD_FLAGS} -o ${BIN_DIR}/vc-webhook-manager ./cmd/webhook-manager
@@ -94,7 +99,7 @@ vcctl: init
 image_bins: vc-scheduler vc-controller-manager vc-webhook-manager vc-agent
 
 images:
-	for name in controller-manager scheduler webhook-manager agent; do\
+	for name in controller-manager ; do\
 		docker buildx build -t "${IMAGE_PREFIX}/vc-$$name:$(TAG)" . -f ./installer/dockerfile/$$name/Dockerfile --output=type=${BUILDX_OUTPUT_TYPE} --platform ${DOCKER_PLATFORMS} --build-arg APK_MIRROR=${APK_MIRROR} --build-arg OPEN_EULER_IMAGE_TAG=${OPEN_EULER_IMAGE_TAG}; \
 	done
 
